@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "data-bi-with-lol": {
+      "command": ".venv\\Scripts\\python.exe",
+      "args": ["apps/backend/app/mcp_server.py"],
+      "env": {
+        "DATA_BI_API_URL": "http://127.0.0.1:8000/api/v1"
+      }
+    }
+  }
+}

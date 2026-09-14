@@ -1,0 +1,35 @@
+[project]
+name = "data-bi-with-lol"
+version = "0.1.0"
+description = "Local-first data preparation, analysis and BI platform with a League of Legends case study"
+requires-python = ">=3.12"
+dependencies = [
+  "duckdb>=1.4,<2",
+  "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
+  "numpy>=2,<3",
+  "openpyxl>=3.1,<4",
+  "pandas>=2.2,<3",
+  "pyarrow>=19,<21",
+  "python-multipart>=0.0.20,<1",
+  "scikit-learn>=1.6,<2",
+  "scipy>=1.15,<2",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["apps/backend"]
+include = ["app*"]
+
+[project.optional-dependencies]
+mcp = ["fastmcp>=2.10,<3"]
+stream = ["kafka-python-ng>=2.2,<3"]
+test = ["pytest>=8,<9", "pytest-asyncio>=0.25,<1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["apps/backend"]
+testpaths = ["tests"]

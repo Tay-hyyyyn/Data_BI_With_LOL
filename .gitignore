@@ -1,0 +1,17 @@
+.venv/
+node_modules/
+dist/
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.egg-info/
+.env
+data/
+!data/.gitkeep
+apps/backend/.ruff_cache/
+apps/frontend/coverage/
+airflow/logs/
+airflow/airflow.db
+.pnpm-store/
+reference_data_analysis_process/

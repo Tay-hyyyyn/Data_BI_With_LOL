@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Data BI Event Envelope",
+  "type": "object",
+  "required": ["event_id", "domain", "dataset", "schema_version", "event_time", "payload"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "domain": {"type": "string", "minLength": 1},
+    "dataset": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "event_time": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

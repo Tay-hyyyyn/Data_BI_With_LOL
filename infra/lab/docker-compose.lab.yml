@@ -1,0 +1,48 @@
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.3.7
+    profiles: [stream-lab]
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=768M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:19092
+    ports: ["19092:9092", "19644:9644"]
+
+  airflow:
+    image: apache/airflow:2.10.5-python3.12
+    profiles: [batch-lab]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+      DATA_BI_API_URL: http://host.docker.internal:8000/api/v1
+    volumes:
+      - ../../orchestration/airflow/dags:/opt/airflow/dags
+      - ../../data:/workspace/data
+    command: standalone
+    depends_on: [airflow-db]
+    ports: ["8081:8080"]
+
+  airflow-db:
+    image: postgres:16-alpine
+    profiles: [batch-lab]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db:/var/lib/postgresql/data
+
+# Core: docker compose up
+# Batch lab: docker compose -f docker-compose.yml -f infra/lab/docker-compose.lab.yml --profile batch-lab up
+# Stream lab: docker compose -f docker-compose.yml -f infra/lab/docker-compose.lab.yml --profile stream-lab up
+
+volumes:
+  airflow_db:

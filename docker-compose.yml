@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DATA_BI_ENV: local
+      DATA_BI_ROOT: /workspace/data
+      DATA_BI_CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+    volumes:
+      - ./data:/workspace/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    depends_on: [backend]
+    ports:
+      - "8080:80"
