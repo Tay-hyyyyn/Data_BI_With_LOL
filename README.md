@@ -34,6 +34,8 @@ pip install -e ".[test,mcp]"
 uvicorn app.main:app --app-dir apps/backend --reload
 ```
 
+프로젝트 루트의 `.env`는 애플리케이션 시작 시 자동으로 읽으며, 이미 `.gitignore`에 포함되어 Git에 저장되지 않습니다.
+
 다른 터미널에서:
 
 ```bash
