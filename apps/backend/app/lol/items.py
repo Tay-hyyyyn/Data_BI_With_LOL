@@ -190,6 +190,6 @@ def build_item_event_mart(events: pd.DataFrame, items: pd.DataFrame) -> pd.DataF
     available = [column for column in item_columns if column in items.columns]
     output = events.merge(items[available].drop_duplicates("item_id"), on="item_id", how="left")
     output["minute"] = output["timestamp_ms"] / 60_000
-    final_item = output["is_final_item"].fillna(False) if "is_final_item" in output else pd.Series(False, index=output.index)
+    final_item = output["is_final_item"].eq(True) if "is_final_item" in output else pd.Series(False, index=output.index)
     output["is_completion_event"] = output["event_type"].eq("ITEM_PURCHASED") & final_item
     return output

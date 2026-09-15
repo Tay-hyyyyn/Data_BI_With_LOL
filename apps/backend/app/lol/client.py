@@ -65,13 +65,13 @@ class RiotClient:
         return await self.get_json(url)
 
     async def persist_match(self, match_id: str) -> dict[str, Path]:
-        base = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}"
-        match, timeline = await asyncio.gather(self.get_json(base), self.get_json(f"{base}/timeline"))
         root = settings.root / "bronze" / "riot" / "matches" / match_id
-        root.mkdir(parents=True, exist_ok=True)
         paths = {"match": root / "match.json", "timeline": root / "timeline.json"}
         if all(path.is_file() for path in paths.values()):
             return paths
+        base = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        match, timeline = await asyncio.gather(self.get_json(base), self.get_json(f"{base}/timeline"))
+        root.mkdir(parents=True, exist_ok=True)
         for key, payload in (("match", match), ("timeline", timeline)):
             temp = paths[key].with_suffix(".json.tmp")
             temp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")

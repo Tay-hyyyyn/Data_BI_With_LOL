@@ -52,6 +52,12 @@ pnpm dev
 
 브라우저에서 `http://localhost:5173`을 엽니다. API 문서는 `http://localhost:8000/docs`에서 확인합니다.
 
+Riot ID의 최근 경기 표본은 `.env`의 키를 노출하지 않고 다음처럼 수집할 수 있습니다. 여러 패치가 섞이면 패치별 Data Dragon 데이터와 분석 마트로 자동 분리되며, 같은 표본의 재실행은 기존 이름의 데이터셋을 멱등 갱신합니다.
+
+```bash
+python scripts/collect_lol_sample.py "게임이름#태그" --count 20
+```
+
 합성 마케팅 데이터는 다음 명령으로 만듭니다.
 
 ```bash

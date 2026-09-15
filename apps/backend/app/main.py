@@ -258,10 +258,12 @@ async def collect_lol_matches(request: RiotMatchCollectRequest) -> dict:
 def process_lol_matches(request: RiotMatchProcessRequest) -> dict:
     try:
         participants, states, events = normalize_persisted(settings.root, request.match_ids, request.snapshot_minutes)
+        patch_values = sorted({patch_key(str(value)) for value in participants.get("game_version", []) if value})
+        patch_label = "-".join(patch_values) if patch_values else "unknown"
         result = {
-            "participants": create_dataset_from_frame(participants, "LoL match participants", "riot-match-v5"),
-            "player_states": create_dataset_from_frame(states, "LoL player state snapshots", "riot-timeline-v5"),
-            "item_events": create_dataset_from_frame(events, "LoL item events", "riot-timeline-v5"),
+            "participants": sync_named_dataset(participants, f"LoL match participants {patch_label}", "riot-match-v5"),
+            "player_states": sync_named_dataset(states, f"LoL player state snapshots {patch_label}", "riot-timeline-v5"),
+            "item_events": sync_named_dataset(events, f"LoL item events {patch_label}", "riot-timeline-v5"),
         }
         if request.item_dataset_id:
             items = read_frame(request.item_dataset_id)
@@ -271,10 +273,10 @@ def process_lol_matches(request: RiotMatchProcessRequest) -> dict:
                 raise ValueError(f"경기 패치 {sorted(match_patches)}와 아이템 패치 {item_patch}가 일치하지 않습니다.")
             mart = build_context_mart(states, items)
             mart["ddragon_version"] = str(items.iloc[0]["patch"]) if "patch" in items and not items.empty else None
-            result["context_mart"] = create_dataset_from_frame(mart, "LoL contextual gold mart", "riot-derived-model")
-            result["observed_win_summary"] = create_dataset_from_frame(build_observed_win_summary(mart), "LoL observed win cohorts", "riot-derived-model")
-            result["gold_win_timeseries"] = create_dataset_from_frame(build_gold_win_timeseries(mart), "LoL gold and stat win-rate timeseries", "riot-derived-model")
-            result["item_event_mart"] = create_dataset_from_frame(build_item_event_mart(events, items), "LoL item completion events", "riot-derived-model")
+            result["context_mart"] = sync_named_dataset(mart, f"LoL contextual gold mart {patch_label}", "riot-derived-model")
+            result["observed_win_summary"] = sync_named_dataset(build_observed_win_summary(mart), f"LoL observed win cohorts {patch_label}", "riot-derived-model")
+            result["gold_win_timeseries"] = sync_named_dataset(build_gold_win_timeseries(mart), f"LoL gold and stat win-rate timeseries {patch_label}", "riot-derived-model")
+            result["item_event_mart"] = sync_named_dataset(build_item_event_mart(events, items), f"LoL item completion events {patch_label}", "riot-derived-model")
         return result
     except FileNotFoundError as error:
         raise HTTPException(404, str(error)) from error
