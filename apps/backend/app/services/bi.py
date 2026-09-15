@@ -207,9 +207,13 @@ def set_dashboard_published(dashboard_id: str, published: bool) -> DashboardSumm
                 sources = connection.execute(
                     f"SELECT name, source_type FROM datasets WHERE id IN ({placeholders})", tuple(dataset_ids)
                 ).fetchall()
-            contains_riot = any(row["source_type"].startswith("riot-") or row["name"].lower().startswith("lol ") for row in sources)
-            if contains_riot and not settings.riot_enable_public_data:
-                raise PermissionError("Riot 데이터 대시보드는 RIOT_ENABLE_PUBLIC_DATA=true 승인 전 게시할 수 없습니다.")
+            contains_restricted_lol = any(
+                row["source_type"].startswith(("riot-", "lolps-"))
+                or row["name"].lower().startswith(("lol ", "lol.ps"))
+                for row in sources
+            )
+            if contains_restricted_lol and not settings.riot_enable_public_data:
+                raise PermissionError("LoL 원천·벤치마크 데이터 대시보드는 RIOT_ENABLE_PUBLIC_DATA=true 승인 전 게시할 수 없습니다.")
     now = utcnow()
     with db() as connection:
         updated = connection.execute(

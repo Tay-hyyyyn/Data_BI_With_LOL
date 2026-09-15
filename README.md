@@ -23,6 +23,8 @@
 - NNLS·양수 Ridge 계수 병렬 산출과 경기–아이템 패치 일치 검증
 - Match-V5·Timeline 원본의 참가자·10/15/20분 상태·아이템 이벤트 정규화
 - 인벤토리 비용·팀/라인 골드 격차·관찰 승패를 결합한 LoL 문맥 분석 마트
+- 인벤토리가 제공하는 AP·AD·스킬 가속 등 시점별 스탯과 500골드 구간별 관찰 승률 시계열 마트
+- 허가받은 LOL.PS CSV·Excel·Parquet 집계를 위한 수동 benchmark 입력 계약
 - 웹 LoL 실험실에서 정적 동기화→계정 확인→경기 수집→마트 생성을 순서대로 실행
 - 선택형 Airflow Dynamic Task Mapping 및 Redpanda JSONL→Parquet 컴팩션 실습
 - Docker Compose 및 로컬 직접 실행
@@ -84,3 +86,6 @@ python apps/backend/app/mcp_server.py
 - Riot 데이터가 연결된 대시보드는 `RIOT_ENABLE_PUBLIC_DATA=true`의 명시적 승인 없이는 게시가 거부됩니다.
 - `DATA_BI_ENV=production`에서 개발 키 사용을 차단하는 LoL 수집 계층을 추가합니다.
 - `reference_data_analysis_process/`는 참고 자료이며 애플리케이션이 수정하거나 런타임 입력으로 사용하지 않습니다.
+- LOL.PS 연동은 공식 허가·문서가 확인되기 전까지 파일 업로드 방식만 제공하며 비공개 엔드포인트를 호출하지 않습니다.
+
+LOL.PS 등에서 정식으로 제공받은 집계 파일은 `samples/lolps_benchmark_template.csv` 계약에 맞춰 LoL 실험실의 선택 입력란에 등록할 수 있습니다. 템플릿 값은 형식 설명용 예시이며 실제 LOL.PS 통계가 아닙니다.

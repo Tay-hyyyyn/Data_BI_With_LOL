@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.lol.items import build_context_mart, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_frame, reference_prices
+from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_frame, reference_prices
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:
@@ -22,8 +22,8 @@ def test_context_mart_adds_inventory_and_gold_differences() -> None:
     )
     items = pd.DataFrame(
         [
-            {"item_id": 1036, "item_name": "Long Sword", "total_gold": 350},
-            {"item_id": 1056, "item_name": "Doran's Ring", "total_gold": 400},
+            {"item_id": 1036, "item_name": "Long Sword", "total_gold": 350, "ad": 10, "ap": 0, "ability_haste": 0},
+            {"item_id": 1056, "item_name": "Doran's Ring", "total_gold": 400, "ad": 0, "ap": 18, "ability_haste": 0},
         ]
     )
 
@@ -35,12 +35,17 @@ def test_context_mart_adds_inventory_and_gold_differences() -> None:
     assert middle["team_gold_diff"] == 400
     assert middle["lane_gold_diff"] == 300
     assert middle["observed_win"] == 1
+    assert middle["inventory_ad"] == 10
+    assert middle["inventory_ap"] == 0
 
     mart["game_version"] = "16.18.1"
     mart["champion_id"] = 1
     mart["participant_id"] = range(1, len(mart) + 1)
     summary = build_observed_win_summary(mart)
     assert {"sample_players", "sample_matches", "observed_win_rate"}.issubset(summary.columns)
+    timeseries = build_gold_win_timeseries(mart, bucket_size=500)
+    assert {"gold_bucket_start", "gold_bucket_end", "observed_win_rate", "average_inventory_ad"}.issubset(timeseries.columns)
+    assert timeseries["sample_players"].sum() == len(mart)
 
 
 def test_item_event_mart_marks_final_item_purchase() -> None:

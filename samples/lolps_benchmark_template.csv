@@ -1,0 +1,2 @@
+patch,region,tier,role,champion_id,champion_name,item_id,item_name,build_order,sample_games,pick_rate,win_rate,source_url,collected_at
+16.18,KR,EMERALD_PLUS,MIDDLE,103,Ahri,6655,Example Item,1,1000,0.125,0.523,https://lol.ps/,2026-09-15T00:00:00+09:00

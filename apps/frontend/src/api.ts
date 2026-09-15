@@ -45,6 +45,11 @@ export const api = {
   togglePipeline: (id: string, enabled: boolean) => fetch(`/api/v1/pipelines/${id}/enabled?enabled=${enabled}`, { method: "POST" }).then(decode<Pipeline>),
   runPipeline: (id: string, idempotencyKey: string) => fetch(`/api/v1/pipelines/${id}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey }) }).then(decode<Job>),
   syncLolStatic: (version?: string) => fetch("/api/v1/lol/static/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: version || null, bootstrap_samples: 200 }) }).then(decode<LolStaticSync>),
+  uploadLolpsBenchmark: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch("/api/v1/lol/benchmarks/upload", { method: "POST", body: form }).then(decode<Dataset>);
+  },
   resolveRiotAccount: (gameName: string, tagLine: string) => fetch("/api/v1/lol/accounts/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ game_name: gameName, tag_line: tagLine }) }).then(decode<RiotAccount>),
   collectLolMatches: (puuid: string, count: number) => fetch("/api/v1/lol/matches/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ puuid, count }) }).then(decode<RiotMatchCollection>),
   processLolMatches: (matchIds: string[], itemDatasetId?: string) => fetch("/api/v1/lol/matches/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ match_ids: matchIds, snapshot_minutes: [10, 15, 20], item_dataset_id: itemDatasetId || null }) }).then(decode<Record<string, Dataset>>),

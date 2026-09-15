@@ -13,7 +13,8 @@ from .services.datasets import create_dataset_from_frame, get_profile, ingest_up
 from .services.relationships import analyze_cached
 from .services.transforms import run_recipe
 from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon_bundle
-from .lol.items import build_context_mart, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_efficiency, item_frame, reference_prices
+from .lol.benchmark import read_lolps_benchmark_upload
+from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_efficiency, item_frame, reference_prices
 from .lol.static import champion_frame, patch_key, rune_frame
 from .lol.timeline import normalize_persisted
 from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, set_dashboard_published, update_dashboard
@@ -204,6 +205,22 @@ async def sync_lol_static(request: LolStaticSyncRequest) -> dict:
         raise HTTPException(502, str(error)) from error
 
 
+@app.post("/api/v1/lol/benchmarks/upload", response_model=DatasetSummary, status_code=201)
+async def upload_lolps_benchmark(
+    file: UploadFile = File(...),
+    name: str | None = Form(None),
+    sheet_name: str | None = Form(None),
+) -> DatasetSummary:
+    payload = await file.read(settings.max_upload_bytes + 1)
+    if len(payload) > settings.max_upload_bytes:
+        raise HTTPException(413, "파일 크기 제한을 초과했습니다.")
+    try:
+        frame = read_lolps_benchmark_upload(file.filename or "lolps-benchmark.csv", payload, sheet_name)
+        return create_dataset_from_frame(frame, name or "LOL.PS aggregate benchmark", "lolps-benchmark-manual")
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
 @app.post("/api/v1/lol/accounts/resolve", response_model=RiotAccountSummary)
 async def resolve_riot_account(request: RiotAccountResolveRequest) -> RiotAccountSummary:
     try:
@@ -256,6 +273,7 @@ def process_lol_matches(request: RiotMatchProcessRequest) -> dict:
             mart["ddragon_version"] = str(items.iloc[0]["patch"]) if "patch" in items and not items.empty else None
             result["context_mart"] = create_dataset_from_frame(mart, "LoL contextual gold mart", "riot-derived-model")
             result["observed_win_summary"] = create_dataset_from_frame(build_observed_win_summary(mart), "LoL observed win cohorts", "riot-derived-model")
+            result["gold_win_timeseries"] = create_dataset_from_frame(build_gold_win_timeseries(mart), "LoL gold and stat win-rate timeseries", "riot-derived-model")
             result["item_event_mart"] = create_dataset_from_frame(build_item_event_mart(events, items), "LoL item completion events", "riot-derived-model")
         return result
     except FileNotFoundError as error:
