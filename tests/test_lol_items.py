@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.lol.items import build_context_mart, build_item_event_mart, build_observed_win_summary, item_frame, reference_prices
+from app.lol.items import build_context_mart, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_frame, reference_prices
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:
@@ -51,3 +51,17 @@ def test_item_event_mart_marks_final_item_purchase() -> None:
 
     assert mart.iloc[0]["minute"] == 15
     assert bool(mart.iloc[0]["is_completion_event"])
+
+
+def test_gold_model_exposes_non_negative_ridge_and_nnls() -> None:
+    items = pd.DataFrame(
+        {
+            "item_name": ["A", "B", "C", "D", "E", "F"],
+            "total_gold": [100, 200, 300, 400, 500, 600],
+            "ad": [1, 2, 1, 3, 2, 4],
+            "ap": [2, 1, 3, 1, 4, 2],
+        }
+    )
+    result = estimate_gold_values(items, bootstrap=20)
+    assert (result["ridge_gold_per_unit"] >= 0).all()
+    assert (result["nnls_gold_per_unit"] >= 0).all()

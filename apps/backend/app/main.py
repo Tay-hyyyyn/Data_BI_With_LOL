@@ -8,12 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import initialize_database
-from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
-from .services.datasets import create_dataset_from_frame, get_profile, ingest_upload, list_datasets, preview, read_frame
+from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
+from .services.datasets import create_dataset_from_frame, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
 from .services.relationships import analyze_cached
 from .services.transforms import run_recipe
-from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon
+from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon_bundle
 from .lol.items import build_context_mart, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_efficiency, item_frame, reference_prices
+from .lol.static import champion_frame, patch_key, rune_frame
 from .lol.timeline import normalize_persisted
 from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, set_dashboard_published, update_dashboard
 from .services.jobs import get_job, job_runner, list_jobs
@@ -188,15 +189,36 @@ def transform(dataset_id: str, request: TransformRequest) -> TransformResult:
 @app.post("/api/v1/lol/static/sync")
 async def sync_lol_static(request: LolStaticSyncRequest) -> dict:
     try:
-        version, payload = await fetch_data_dragon(request.version)
-        items = item_frame(payload, version)
+        version, payload = await fetch_data_dragon_bundle(request.version)
+        items = item_frame(payload["items"], version)
+        champions = champion_frame(payload["champions"], version)
+        runes = rune_frame(payload["runes"], version)
         estimates = estimate_gold_values(items, bootstrap=request.bootstrap_samples)
         efficiency = item_efficiency(items, reference_prices(items))
-        item_dataset = create_dataset_from_frame(efficiency, f"LoL items {version}", "riot-data-dragon")
-        value_dataset = create_dataset_from_frame(estimates, f"LoL stat values {version}", "riot-derived-model")
-        return {"patch": version, "items": item_dataset, "stat_values": value_dataset}
+        item_dataset = sync_named_dataset(efficiency, f"LoL items {version}", "riot-data-dragon")
+        champion_dataset = sync_named_dataset(champions, f"LoL champions {version}", "riot-data-dragon")
+        rune_dataset = sync_named_dataset(runes, f"LoL runes {version}", "riot-data-dragon")
+        value_dataset = sync_named_dataset(estimates, f"LoL stat values {version}", "riot-derived-model")
+        return {"patch": version, "items": item_dataset, "champions": champion_dataset, "runes": rune_dataset, "stat_values": value_dataset}
     except (ValueError, httpx.HTTPError) as error:
         raise HTTPException(502, str(error)) from error
+
+
+@app.post("/api/v1/lol/accounts/resolve", response_model=RiotAccountSummary)
+async def resolve_riot_account(request: RiotAccountResolveRequest) -> RiotAccountSummary:
+    try:
+        account = await RiotClient().account_by_riot_id(request.game_name, request.tag_line)
+        return RiotAccountSummary(
+            puuid=account["puuid"],
+            game_name=account.get("gameName", request.game_name),
+            tag_line=account.get("tagLine", request.tag_line.lstrip("#")),
+        )
+    except RiotKeyError as error:
+        raise HTTPException(401, str(error)) from error
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == 404:
+            raise HTTPException(404, "Riot ID를 찾을 수 없습니다.") from error
+        raise HTTPException(error.response.status_code, "Riot 계정 조회에 실패했습니다.") from error
 
 
 @app.post("/api/v1/lol/matches/collect")
@@ -206,9 +228,11 @@ async def collect_lol_matches(request: RiotMatchCollectRequest) -> dict:
         match_ids = await client.match_ids(request.puuid, count=request.count)
         persisted = []
         for match_id in match_ids:
+            directory = settings.root / "bronze" / "riot" / "matches" / match_id
+            cached = (directory / "match.json").is_file() and (directory / "timeline.json").is_file()
             paths = await client.persist_match(match_id)
-            persisted.append({"match_id": match_id, "files": [str(path) for path in paths.values()]})
-        return {"visibility": "private", "matches": persisted}
+            persisted.append({"match_id": match_id, "cached": cached, "files": [str(path) for path in paths.values()]})
+        return {"visibility": "private", "matches": persisted, "fetched": sum(not item["cached"] for item in persisted), "cached": sum(item["cached"] for item in persisted)}
     except RiotKeyError as error:
         raise HTTPException(401, str(error)) from error
 
@@ -224,13 +248,20 @@ def process_lol_matches(request: RiotMatchProcessRequest) -> dict:
         }
         if request.item_dataset_id:
             items = read_frame(request.item_dataset_id)
+            item_patch = patch_key(str(items.iloc[0]["patch"])) if "patch" in items and not items.empty else ""
+            match_patches = {patch_key(value) for value in states.get("game_version", []) if value}
+            if item_patch and any(value != item_patch for value in match_patches):
+                raise ValueError(f"경기 패치 {sorted(match_patches)}와 아이템 패치 {item_patch}가 일치하지 않습니다.")
             mart = build_context_mart(states, items)
+            mart["ddragon_version"] = str(items.iloc[0]["patch"]) if "patch" in items and not items.empty else None
             result["context_mart"] = create_dataset_from_frame(mart, "LoL contextual gold mart", "riot-derived-model")
             result["observed_win_summary"] = create_dataset_from_frame(build_observed_win_summary(mart), "LoL observed win cohorts", "riot-derived-model")
             result["item_event_mart"] = create_dataset_from_frame(build_item_event_mart(events, items), "LoL item completion events", "riot-derived-model")
         return result
     except FileNotFoundError as error:
         raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @app.post("/api/v1/metrics", response_model=MetricSummary, status_code=201)

@@ -96,6 +96,17 @@ class LolStaticSyncRequest(BaseModel):
     bootstrap_samples: int = Field(200, ge=20, le=2_000)
 
 
+class RiotAccountResolveRequest(BaseModel):
+    game_name: str = Field(min_length=1, max_length=64)
+    tag_line: str = Field(min_length=1, max_length=16)
+
+
+class RiotAccountSummary(BaseModel):
+    puuid: str
+    game_name: str
+    tag_line: str
+
+
 class RiotMatchCollectRequest(BaseModel):
     puuid: str = Field(min_length=20, max_length=128)
     count: int = Field(10, ge=1, le=100)

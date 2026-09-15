@@ -18,8 +18,12 @@
 - 단일 프로세스 비동기 JobRunner와 작업 상태 화면
 - 활성 파이프라인 레지스트리·토글·멱등 실행 API와 Airflow 공통 DAG 연동
 - Data Dragon 아이템 파서, 기준가격·양수 Ridge·bootstrap 분석 코어
+- Data Dragon 챔피언·룬 정규화와 동일 패치 멱등 동기화
+- Riot ID→PUUID 확인 및 Development Key 장기 한도 기반 요청 조절
+- NNLS·양수 Ridge 계수 병렬 산출과 경기–아이템 패치 일치 검증
 - Match-V5·Timeline 원본의 참가자·10/15/20분 상태·아이템 이벤트 정규화
 - 인벤토리 비용·팀/라인 골드 격차·관찰 승패를 결합한 LoL 문맥 분석 마트
+- 웹 LoL 실험실에서 정적 동기화→계정 확인→경기 수집→마트 생성을 순서대로 실행
 - 선택형 Airflow Dynamic Task Mapping 및 Redpanda JSONL→Parquet 컴팩션 실습
 - Docker Compose 및 로컬 직접 실행
 

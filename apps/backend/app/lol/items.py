@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
+from scipy.optimize import nnls
 
 
 STAT_KEYS = {
@@ -76,6 +77,7 @@ def estimate_gold_values(items: pd.DataFrame, alpha: float = 10.0, bootstrap: in
     if len(model_data) < len(stat_columns) + 2:
         raise ValueError("회귀 모델을 계산할 아이템 표본이 부족합니다.")
     model = Ridge(alpha=alpha, positive=True, fit_intercept=True).fit(model_data[stat_columns], model_data["total_gold"])
+    nnls_coefficients, _ = nnls(model_data[stat_columns].to_numpy(dtype=float), model_data["total_gold"].to_numpy(dtype=float))
     rng = np.random.default_rng(seed)
     samples = []
     for _ in range(bootstrap):
@@ -88,6 +90,7 @@ def estimate_gold_values(items: pd.DataFrame, alpha: float = 10.0, bootstrap: in
         "stat": stat_columns,
         "reference_gold_per_unit": [references.get(name, np.nan) for name in stat_columns],
         "ridge_gold_per_unit": model.coef_,
+        "nnls_gold_per_unit": nnls_coefficients,
         "ci95_low": np.quantile(estimates, 0.025, axis=0),
         "ci95_high": np.quantile(estimates, 0.975, axis=0),
         "sample_items": len(model_data),

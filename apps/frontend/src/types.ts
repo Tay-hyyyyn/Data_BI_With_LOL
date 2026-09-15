@@ -98,3 +98,18 @@ export type Pipeline = {
   created_at: string;
   updated_at: string;
 };
+
+export type RiotAccount = { puuid: string; game_name: string; tag_line: string };
+export type LolStaticSync = {
+  patch: string;
+  items: Dataset;
+  champions: Dataset;
+  runes: Dataset;
+  stat_values: Dataset;
+};
+export type RiotMatchCollection = {
+  visibility: "private";
+  fetched: number;
+  cached: number;
+  matches: Array<{ match_id: string; cached: boolean; files: string[] }>;
+};

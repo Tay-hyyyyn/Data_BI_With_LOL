@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -126,6 +127,37 @@ def list_datasets() -> list[DatasetSummary]:
             LEFT JOIN dataset_versions v ON v.id=d.current_version_id ORDER BY d.created_at DESC"""
         ).fetchall()
     return [DatasetSummary(**dict(row)) for row in rows]
+
+
+def get_dataset_by_name(name: str, source_type: str) -> DatasetSummary | None:
+    with db() as connection:
+        row = connection.execute(
+            """SELECT d.*, v.row_count, v.column_count FROM datasets d
+            LEFT JOIN dataset_versions v ON v.id=d.current_version_id
+            WHERE d.name=? AND d.source_type=? ORDER BY d.created_at DESC LIMIT 1""",
+            (name, source_type),
+        ).fetchone()
+    return DatasetSummary(**dict(row)) if row else None
+
+
+def _frame_fingerprint(frame: pd.DataFrame) -> str:
+    digest = hashlib.sha256("\x1f".join(map(str, frame.columns)).encode("utf-8"))
+    normalized = frame.astype(object).where(pd.notna(frame), "<NULL>").astype(str)
+    digest.update(pd.util.hash_pandas_object(normalized, index=False).values.tobytes())
+    return digest.hexdigest()
+
+
+def sync_named_dataset(frame: pd.DataFrame, name: str, source_type: str) -> DatasetSummary:
+    existing = get_dataset_by_name(name, source_type)
+    if not existing:
+        return create_dataset_from_frame(frame, name, source_type)
+    current = read_frame(existing.id)
+    if _frame_fingerprint(current) != _frame_fingerprint(frame):
+        publish_new_version(existing.id, frame, "source synchronization", [])
+    refreshed = get_dataset_by_name(name, source_type)
+    if not refreshed:
+        raise RuntimeError("동기화된 데이터셋을 다시 찾을 수 없습니다.")
+    return refreshed
 
 
 def get_version(dataset_id: str) -> dict:
