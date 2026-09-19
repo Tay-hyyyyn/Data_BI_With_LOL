@@ -73,6 +73,7 @@ class TransformStep(BaseModel):
     operation: Literal[
         "select", "rename", "cast", "fill_missing", "drop_missing",
         "drop_duplicates", "filter", "calculate", "aggregate", "pivot",
+        "join",
     ]
     config: dict[str, Any] = Field(default_factory=dict)
 

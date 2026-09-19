@@ -62,6 +62,31 @@ def _apply(frame: pd.DataFrame, operation: str, config: dict[str, Any]) -> pd.Da
     if operation == "pivot":
         index, columns, values = config["index"], config["columns"], config["values"]; _columns_exist(output, [index, columns, values])
         return output.pivot_table(index=index, columns=columns, values=values, aggfunc=config.get("aggfunc", "sum"), fill_value=config.get("fill_value", 0)).reset_index()
+    if operation == "join":
+        right_dataset_id = str(config["right_dataset_id"])
+        left_on = list(config.get("left_on", []))
+        right_on = list(config.get("right_on", left_on))
+        how = config.get("how", "left")
+        if not left_on or len(left_on) != len(right_on):
+            raise ValueError("조인 키는 좌·우 데이터셋에 같은 개수로 지정해야 합니다.")
+        if how not in {"left", "inner"}:
+            raise ValueError("조인은 left 또는 inner 방식만 지원합니다.")
+        _columns_exist(output, left_on)
+        right = read_frame(right_dataset_id)
+        _columns_exist(right, right_on)
+        validate = config.get("validate")
+        allowed_validations = {None, "one_to_one", "one_to_many", "many_to_one", "many_to_many"}
+        if validate not in allowed_validations:
+            raise ValueError("지원하지 않는 조인 카디널리티 검증입니다.")
+        return output.merge(
+            right,
+            how=how,
+            left_on=left_on,
+            right_on=right_on,
+            suffixes=("", "_right"),
+            validate=validate,
+            sort=False,
+        )
     raise ValueError("지원하지 않는 전처리 작업입니다.")
 
 
