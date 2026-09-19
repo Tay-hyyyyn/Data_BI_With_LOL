@@ -8,6 +8,7 @@ __pycache__/
 *.egg-info/
 .env
 data/
+data-restored/
 backups/
 !data/.gitkeep
 apps/backend/.ruff_cache/

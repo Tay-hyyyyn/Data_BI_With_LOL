@@ -92,7 +92,10 @@ Airflow는 `/api/v1/pipelines?enabled=true`에서 활성 정의만 읽으며 동
 python scripts/backup_data.py
 python scripts/verify_backup.py backups/data-bi-YYYYMMDD-HHMMSS.zip
 python scripts/backup_data.py --include-raw
+python scripts/restore_data.py backups/data-bi-YYYYMMDD-HHMMSS.zip --data-root data-restored
 ```
+
+복원은 비어 있는 대상 디렉터리에서만 허용됩니다. 기존 `data/`를 덮어쓰지 않으므로, 복원 결과를 점검한 뒤 필요하면 앱을 중지하고 `DATA_BI_ROOT=data-restored`로 실행해 확인할 수 있습니다.
 
 ## FastMCP
 
