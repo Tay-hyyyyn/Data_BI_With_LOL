@@ -77,6 +77,17 @@ export type Dashboard = {
   updated_at: string;
 };
 
+export type DashboardWidget = {
+  id: string;
+  title: string;
+  type: "kpi" | "bar" | "line" | "histogram" | "scatter" | "boxplot" | "heatmap";
+  column: string;
+  dimension?: string;
+  secondary?: string;
+  aggregation?: "sum" | "mean" | "count" | "min" | "max";
+  dataset_id?: string;
+};
+
 export type Job = {
   id: string;
   job_type: string;

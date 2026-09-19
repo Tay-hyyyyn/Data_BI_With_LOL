@@ -96,6 +96,10 @@ class LolStaticSyncRequest(BaseModel):
     bootstrap_samples: int = Field(200, ge=20, le=2_000)
 
 
+class LolStarterDashboardRequest(BaseModel):
+    patch: str = Field(min_length=1, max_length=20)
+
+
 class RiotAccountResolveRequest(BaseModel):
     game_name: str = Field(min_length=1, max_length=64)
     tag_line: str = Field(min_length=1, max_length=16)

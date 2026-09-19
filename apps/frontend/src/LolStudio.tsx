@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DatabaseZap, Download, FileUp, Gamepad2, Play, ShieldCheck } from "lucide-react";
+import { BarChart3, DatabaseZap, Download, FileUp, Gamepad2, Play, ShieldCheck } from "lucide-react";
 import { api } from "./api";
 import type { Dataset, RiotAccount, RiotMatchCollection } from "./types";
 
@@ -14,6 +14,7 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [benchmarkFile, setBenchmarkFile] = useState<File | null>(null);
+  const [starterPatch, setStarterPatch] = useState("");
   const itemDatasets = useMemo(() => datasets.filter((item) => item.source_type === "riot-data-dragon" && item.name.startsWith("LoL items ")), [datasets]);
 
   async function syncStatic() {
@@ -49,6 +50,13 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
     catch (error) { setMessage(error instanceof Error ? error.message : "벤치마크 등록에 실패했습니다."); }
     finally { setBusy(""); }
   }
+  async function createStarterDashboard() {
+    if (!starterPatch) return;
+    setBusy("dashboard"); setMessage("");
+    try { const result = await api.createLolStarterDashboard(starterPatch); setMessage(`${result.name}를 비공개로 저장했습니다. 대시보드 탭에서 불러올 수 있습니다.`); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "대시보드 생성에 실패했습니다."); }
+    finally { setBusy(""); }
+  }
 
   return <section className="studio lol-studio">
     <div className="lol-safety"><ShieldCheck size={18}/><div><b>개발 데이터 보호 적용</b><span>원본 경기와 파생 데이터는 로컬 비공개로 유지되며 공개 게시가 차단됩니다.</span></div></div>
@@ -59,6 +67,7 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 3</p><h2>최근 경기 수집</h2></div><Download size={19}/></div><label>경기 수<input type="number" min={1} max={20} value={count} onChange={(event) => setCount(Math.min(20, Math.max(1, Number(event.target.value))))}/></label><button className="primary" disabled={!!busy || !account} onClick={() => void collect()}>{busy === "collect" ? "호출 한도에 맞춰 수집 중" : "Match·Timeline 수집"}</button><small>Development Key 장기 한도에 맞춰 요청 간격을 자동 조절합니다.</small></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 4</p><h2>분석 마트 생성</h2></div><Play size={19}/></div><label>아이템 패치 데이터<select value={itemDatasetId} onChange={(event) => setItemDatasetId(event.target.value)}><option value="">문맥 마트 제외</option>{itemDatasets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="primary" disabled={!!busy || !collection?.matches.length} onClick={() => void process()}>{busy === "process" ? "정규화 중" : "10·15·20분 마트 생성"}</button></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>OPTIONAL</p><h2>LOL.PS 벤치마크</h2></div><FileUp size={19}/></div><label>허가받은 집계 파일<input type="file" accept=".csv,.xlsx,.xls,.parquet" onChange={(event) => setBenchmarkFile(event.target.files?.[0] ?? null)}/></label><button className="primary" disabled={!!busy || !benchmarkFile} onClick={() => void uploadBenchmark()}>{busy === "benchmark" ? "검증 중" : "집계 벤치마크 등록"}</button><small>비공개 API 호출 없이 제공받은 파일만 등록하며, 승률·픽률은 0~1로 표준화합니다.</small></article>
+      <article className="panel lol-card"><div className="panel-head"><div><p>STEP 5</p><h2>BI 시작 대시보드</h2></div><BarChart3 size={19}/></div><label>분석 패치<select value={starterPatch} onChange={(event) => setStarterPatch(event.target.value)}><option value="">패치를 선택하세요</option>{itemDatasets.map((item) => <option key={item.id} value={item.name.replace("LoL items ", "")}>{item.name.replace("LoL items ", "")}</option>)}</select></label><button className="primary" disabled={!!busy || !starterPatch} onClick={() => void createStarterDashboard()}>{busy === "dashboard" ? "생성 중" : "골드·승률 대시보드 만들기"}</button><small>선택한 패치의 골드, AP·AD·AH, 관찰 승률 위젯을 비공개로 저장합니다.</small></article>
     </div>
     {collection && <article className="panel match-summary"><b>수집 준비 완료</b><span>{collection.matches.length}경기 · 신규 {collection.fetched} · 캐시 {collection.cached}</span><div>{collection.matches.map((item) => <code key={item.match_id}>{item.match_id}{item.cached ? " · cached" : " · new"}</code>)}</div></article>}
   </section>;

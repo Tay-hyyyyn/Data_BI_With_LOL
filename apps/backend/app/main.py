@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import initialize_database
-from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
-from .services.datasets import create_dataset_from_frame, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
+from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStarterDashboardRequest, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
+from .services.datasets import create_dataset_from_frame, get_dataset_by_name, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
 from .services.relationships import analyze_cached
 from .services.transforms import run_recipe
 from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon_bundle
@@ -17,7 +17,7 @@ from .lol.benchmark import read_lolps_benchmark_upload
 from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_efficiency, item_frame, reference_prices
 from .lol.static import champion_frame, patch_key, rune_frame
 from .lol.timeline import normalize_persisted
-from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, set_dashboard_published, update_dashboard
+from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, save_or_update_dashboard, set_dashboard_published, update_dashboard
 from .services.jobs import get_job, job_runner, list_jobs
 from .services.pipelines import create_pipeline, existing_run_job, get_pipeline, list_pipelines, record_run, set_pipeline_enabled
 
@@ -219,6 +219,24 @@ async def upload_lolps_benchmark(
         return create_dataset_from_frame(frame, name or "LOL.PS aggregate benchmark", "lolps-benchmark-manual")
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
+
+
+@app.post("/api/v1/lol/dashboards/starter", response_model=DashboardSummary, status_code=201)
+def create_lol_starter_dashboard(request: LolStarterDashboardRequest) -> DashboardSummary:
+    patch = patch_key(request.patch)
+    context = get_dataset_by_name(f"LoL contextual gold mart {patch}", "riot-derived-model")
+    timeseries = get_dataset_by_name(f"LoL gold and stat win-rate timeseries {patch}", "riot-derived-model")
+    if not context or not timeseries:
+        raise HTTPException(404, f"{patch} 패치의 분석 마트를 먼저 생성하세요.")
+    widgets = [
+        {"id": f"{patch}-gold", "title": "분당 평균 보유 골드", "type": "line", "column": "total_gold", "dimension": "minute", "aggregation": "mean", "dataset_id": context.id},
+        {"id": f"{patch}-ad", "title": "분당 인벤토리 제공 AD", "type": "line", "column": "inventory_ad", "dimension": "minute", "aggregation": "mean", "dataset_id": context.id},
+        {"id": f"{patch}-ap", "title": "분당 인벤토리 제공 AP", "type": "line", "column": "inventory_ap", "dimension": "minute", "aggregation": "mean", "dataset_id": context.id},
+        {"id": f"{patch}-haste", "title": "분당 인벤토리 제공 스킬 가속", "type": "line", "column": "inventory_ability_haste", "dimension": "minute", "aggregation": "mean", "dataset_id": context.id},
+        {"id": f"{patch}-gold-win", "title": "골드 구간별 관찰 승률", "type": "line", "column": "observed_win_rate", "dimension": "gold_bucket_start", "aggregation": "mean", "dataset_id": timeseries.id},
+        {"id": f"{patch}-team-diff", "title": "팀 골드 격차와 관찰 승리", "type": "scatter", "column": "team_gold_diff", "secondary": "observed_win", "dataset_id": context.id},
+    ]
+    return save_or_update_dashboard(f"LoL 분석 시작 대시보드 {patch}", widgets)
 
 
 @app.post("/api/v1/lol/accounts/resolve", response_model=RiotAccountSummary)

@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from app import main
+
+
+def test_lol_starter_dashboard_uses_patch_specific_marts(monkeypatch) -> None:
+    datasets = {
+        "LoL contextual gold mart 16.18": SimpleNamespace(id="context-1818"),
+        "LoL gold and stat win-rate timeseries 16.18": SimpleNamespace(id="timeseries-1818"),
+    }
+    monkeypatch.setattr(main, "get_dataset_by_name", lambda name, _source: datasets.get(name))
+    captured = {}
+
+    def fake_save(name, widgets, filters=None):
+        captured.update(name=name, widgets=widgets, filters=filters)
+        return SimpleNamespace(name=name, widgets=widgets)
+
+    monkeypatch.setattr(main, "save_or_update_dashboard", fake_save)
+
+    result = main.create_lol_starter_dashboard(main.LolStarterDashboardRequest(patch="16.18.1"))
+
+    assert result.name == "LoL 분석 시작 대시보드 16.18"
+    assert len(captured["widgets"]) == 6
+    assert captured["widgets"][0]["dataset_id"] == "context-1818"
+    assert captured["widgets"][4]["dataset_id"] == "timeseries-1818"
+    assert captured["widgets"][4]["aggregation"] == "mean"

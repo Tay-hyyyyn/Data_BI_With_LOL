@@ -51,7 +51,8 @@ def query_dataset(dataset_id: str, request: DatasetQuery) -> DatasetQueryResult:
         else:
             values = getattr(grouped[request.measure], request.aggregation)()
         result = values.rename("value").reset_index().rename(columns={request.dimension: "category"})
-        result = result.sort_values("value", ascending=False).head(request.limit)
+        is_ordered_dimension = pd.api.types.is_numeric_dtype(filtered[request.dimension]) or pd.api.types.is_datetime64_any_dtype(filtered[request.dimension])
+        result = result.sort_values("category" if is_ordered_dimension else "value", ascending=is_ordered_dimension).head(request.limit)
         rows = json.loads(result.to_json(orient="records", date_format="iso"))
     else:
         if request.aggregation == "count":
@@ -160,6 +161,16 @@ def save_dashboard(payload: DashboardWrite) -> DashboardSummary:
             (dashboard_id, payload.name, json.dumps(definition, ensure_ascii=False), "private", now, now),
         )
     return DashboardSummary(id=dashboard_id, name=payload.name, **definition, visibility="private", created_at=now, updated_at=now)
+
+
+def save_or_update_dashboard(name: str, widgets: list[dict], filters: list[dict] | None = None) -> DashboardSummary:
+    """Upsert a system-generated, private dashboard without duplicating it."""
+    payload = DashboardWrite(name=name, widgets=widgets, filters=filters or [])
+    with db() as connection:
+        row = connection.execute(
+            "SELECT id FROM dashboards WHERE name=? ORDER BY updated_at DESC LIMIT 1", (name,)
+        ).fetchone()
+    return update_dashboard(row["id"], payload) if row else save_dashboard(payload)
 
 
 def list_dashboards() -> list[DashboardSummary]:

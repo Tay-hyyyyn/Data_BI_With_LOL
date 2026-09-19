@@ -51,3 +51,13 @@ def test_chart_builder_returns_deterministic_scatter_sample(monkeypatch) -> None
 
     assert first.sample_size == 100
     assert first.chart_spec["series"][0]["data"] == second.chart_spec["series"][0]["data"]
+
+
+def test_structured_query_keeps_numeric_time_dimension_in_ascending_order(monkeypatch) -> None:
+    frame = pd.DataFrame({"minute": [20, 10, 15], "gold": [7000.0, 3000.0, 5000.0]})
+    monkeypatch.setattr(bi, "get_version", lambda _: {"id": "version-1"})
+    monkeypatch.setattr(bi, "read_frame", lambda _: frame)
+
+    result = bi.query_dataset("dataset-1", DatasetQuery(dimension="minute", measure="gold", aggregation="mean"))
+
+    assert [row["category"] for row in result.rows] == [10, 15, 20]

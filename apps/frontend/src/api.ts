@@ -45,6 +45,7 @@ export const api = {
   togglePipeline: (id: string, enabled: boolean) => fetch(`/api/v1/pipelines/${id}/enabled?enabled=${enabled}`, { method: "POST" }).then(decode<Pipeline>),
   runPipeline: (id: string, idempotencyKey: string) => fetch(`/api/v1/pipelines/${id}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey }) }).then(decode<Job>),
   syncLolStatic: (version?: string) => fetch("/api/v1/lol/static/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: version || null, bootstrap_samples: 200 }) }).then(decode<LolStaticSync>),
+  createLolStarterDashboard: (patch: string) => fetch("/api/v1/lol/dashboards/starter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patch }) }).then(decode<Dashboard>),
   uploadLolpsBenchmark: (file: File) => {
     const form = new FormData();
     form.append("file", file);
