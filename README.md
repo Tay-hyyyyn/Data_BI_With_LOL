@@ -84,6 +84,8 @@ docker compose up --build
 
 Airflow는 `/api/v1/pipelines?enabled=true`에서 활성 정의만 읽으며 동일 `idempotency_key` 재실행은 기존 작업을 반환합니다. 기본 BI는 Airflow가 없어도 로컬 `JobRunner`로 동일 작업을 수행합니다.
 
+Redpanda 실습은 `infra/lab/docker-compose.lab.yml`의 `stream-lab` 프로필로 별도 실행합니다. `stream/producer.py`는 스키마 버전 1 이벤트만 전송하고, `stream/consumer.py`는 1,000건 또는 10초마다 JSONL Bronze와 manifest를 원자적으로 확정한 뒤에만 offset을 커밋합니다. `stream/compact.py`는 닫힌 시간 파티션 또는 64MiB 이상 누적분을 Parquet로 컴팩션하며, 이미 manifest에 기록된 JSONL은 다시 처리하지 않습니다.
+
 ## 백업 및 검증
 
 실행 중인 SQLite WAL 데이터베이스와 게시된 Parquet를 일관된 ZIP으로 백업합니다. 기본 백업에는 원본 업로드와 Riot Bronze 데이터가 포함되지 않으며, 필요한 경우에만 명시적으로 포함합니다. `.env`와 API 키는 어떤 경우에도 백업하지 않습니다.
