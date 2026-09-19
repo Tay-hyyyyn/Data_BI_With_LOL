@@ -38,7 +38,7 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
   async function process() {
     if (!collection?.matches.length) return;
     setBusy("process"); setMessage("");
-    try { const result = await api.processLolMatchesGrouped(collection.matches.map((item) => item.match_id)); await onDatasetsChanged(); setMessage(`${Object.keys(result.patches).length}개 패치를 분리 처리하고 통합 추세 마트를 게시했습니다.`); }
+    try { const result = await api.processLolMatchesGrouped(collection.matches.map((item) => item.match_id)); await onDatasetsChanged(); setMessage(`${Object.keys(result.patches).length}개 패치를 분리 처리하고 통합 추세·표본 품질 마트를 게시했습니다.`); }
     catch (error) { setMessage(error instanceof Error ? error.message : "경기 처리에 실패했습니다."); }
     finally { setBusy(""); }
   }

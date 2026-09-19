@@ -186,6 +186,27 @@ def build_patch_stat_trend(context: pd.DataFrame) -> pd.DataFrame:
     return output.groupby(["patch", "minute"], dropna=False).agg(**aggregations).reset_index()
 
 
+def build_sample_coverage(context: pd.DataFrame) -> pd.DataFrame:
+    """Expose sample composition and data completeness for BI quality monitoring."""
+    if context.empty:
+        return context.copy()
+    output = context.copy()
+    output["patch"] = output["game_version"].astype(str).str.split(".").str[:2].str.join(".")
+    output["inventory_missing"] = output["inventory"].fillna("").astype(str).eq("")
+    return (
+        output.groupby(["patch", "minute", "role"], dropna=False)
+        .agg(
+            sample_players=("participant_id", "count"),
+            sample_matches=("match_id", "nunique"),
+            sample_champions=("champion_id", "nunique"),
+            observed_win_rate=("observed_win", "mean"),
+            average_total_gold=("total_gold", "mean"),
+            inventory_missing_ratio=("inventory_missing", "mean"),
+        )
+        .reset_index()
+    )
+
+
 def build_observed_win_summary(context: pd.DataFrame) -> pd.DataFrame:
     if context.empty:
         return context.copy()

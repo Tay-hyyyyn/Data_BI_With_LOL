@@ -62,6 +62,8 @@ LoL 실험실의 **BI 시작 대시보드**는 선택 패치의 평균 골드, �
 
 여러 패치의 경기를 함께 수집해도 LoL 실험실이 패치별 아이템 카탈로그로 분리 처리하고 `LoL patch stat trend` 데이터셋을 생성합니다. 이 마트는 패치·10/15/20분별 평균 골드와 인벤토리 제공 스탯을 비교하는 용도입니다.
 
+같은 처리 흐름은 `LoL sample coverage`도 생성합니다. 이 마트는 패치·시점·포지션별 경기/참가자/챔피언 표본 수와 빈 인벤토리 비율을 보여 주므로, 적은 표본이나 특정 포지션 편향을 분석 결과와 함께 확인할 수 있습니다.
+
 LoL 타임라인처럼 한 참가자가 여러 시점에 반복되는 데이터의 관계 분석은 `match_participant_key`, `minute`, `latest`를 함께 지정합니다. FastMCP의 `analyze_column_relationships` 도구도 동일한 `entity_key`, `time_column`, `analysis_grain` 인자를 지원합니다.
 
 합성 마케팅 데이터는 다음 명령으로 만듭니다.

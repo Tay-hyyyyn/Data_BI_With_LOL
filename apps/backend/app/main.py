@@ -15,7 +15,7 @@ from .services.relationships import analyze_cached
 from .services.transforms import run_recipe
 from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon_bundle
 from .lol.benchmark import read_lolps_benchmark_upload
-from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, estimate_gold_values, item_efficiency, item_frame, reference_prices
+from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, build_sample_coverage, estimate_gold_values, item_efficiency, item_frame, reference_prices
 from .lol.static import champion_frame, patch_key, rune_frame
 from .lol.timeline import normalize_persisted
 from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, save_or_update_dashboard, set_dashboard_published, update_dashboard
@@ -345,7 +345,12 @@ async def process_lol_matches_grouped(request: RiotMatchProcessRequest) -> dict:
                 "LoL patch stat trend",
                 "riot-derived-model",
             )
-            return {"patches": processed, "patch_stat_trend": trend}
+            coverage = sync_named_dataset(
+                build_sample_coverage(pd.concat(context_frames, ignore_index=True)),
+                "LoL sample coverage",
+                "riot-derived-model",
+            )
+            return {"patches": processed, "patch_stat_trend": trend, "sample_coverage": coverage}
         return {"patches": processed}
     except FileNotFoundError as error:
         raise HTTPException(404, str(error)) from error
