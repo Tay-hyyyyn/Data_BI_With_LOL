@@ -63,6 +63,9 @@ export default function App() {
   const [selectedColumn, setSelectedColumn] = useState("");
   const [relations, setRelations] = useState<RelationshipResponse | null>(null);
   const [selectedRelation, setSelectedRelation] = useState<Relationship | null>(null);
+  const [entityKey, setEntityKey] = useState("");
+  const [timeColumn, setTimeColumn] = useState("");
+  const [analysisGrain, setAnalysisGrain] = useState<"" | "mean" | "latest">("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -96,7 +99,7 @@ export default function App() {
   async function analyze() {
     if (!active || !selectedColumn) return;
     setBusy(true); setError("");
-    try { const result = await api.relationships(active.id, selectedColumn); setRelations(result); setSelectedRelation(result.items[0] ?? null); }
+    try { const result = await api.relationships(active.id, selectedColumn, { entity_key: entityKey || null, time_column: timeColumn || null, analysis_grain: analysisGrain || null }); setRelations(result); setSelectedRelation(result.items[0] ?? null); }
     catch (e) { setError(e instanceof Error ? e.message : "관계 분석에 실패했습니다."); }
     finally { setBusy(false); }
   }
@@ -132,6 +135,8 @@ export default function App() {
           <article className="panel relation-panel">
             <div className="panel-head"><div><p>AI 관계 추천</p><h2>기준 컬럼과 함께 볼 지표</h2></div><Sparkles size={19}/></div>
             <div className="control-row"><label>기준 컬럼<select value={selectedColumn} onChange={(e) => {setSelectedColumn(e.target.value); setRelations(null); setSelectedRelation(null);}}>{profile?.columns.filter((c) => !["identifier", "text"].includes(c.semantic_type)).map((c) => <option key={c.name}>{c.name}</option>)}</select></label><button className="primary" disabled={busy || !selectedColumn} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={16}/> : <Sparkles size={16}/>} 관계 찾기</button></div>
+            <div className="control-row relation-grain"><label>반복 개체 키<select value={entityKey} onChange={(event) => { setEntityKey(event.target.value); if (!event.target.value) { setTimeColumn(""); setAnalysisGrain(""); } }}><option value="">행 단위(기본)</option>{profile?.columns.filter((c) => c.semantic_type === "identifier" || c.unique_count > 1).map((c) => <option key={c.name}>{c.name}</option>)}</select></label><label>시간 컬럼<select value={timeColumn} disabled={!entityKey} onChange={(event) => setTimeColumn(event.target.value)}><option value="">선택</option>{profile?.columns.filter((c) => c.semantic_type === "datetime" || c.name.toLowerCase().includes("minute") || c.name.toLowerCase().includes("time")).map((c) => <option key={c.name}>{c.name}</option>)}</select></label><label>분석 단위<select value={analysisGrain} disabled={!entityKey} onChange={(event) => setAnalysisGrain(event.target.value as "" | "mean" | "latest")}><option value="">선택</option><option value="latest">마지막 시점</option><option value="mean">개체별 평균</option></select></label></div>
+            {entityKey && <p className="insight">반복 측정 데이터는 개체별 분석 단위를 선택해야 합니다. 마지막 시점은 시간 컬럼도 필요합니다.</p>}
             {!relations ? <div className="recommend-placeholder"><Link2 size={24}/><p>컬럼을 선택하면 통계적 관계가 높은 다른 컬럼을 선제적으로 제안합니다.</p><small>Spearman · Cramér’s V · η² 기반</small></div> : <div className="recommend-list">{relations.items.map((item, index) => <button key={item.column} className={selectedRelation?.column === item.column ? "active" : ""} onClick={() => setSelectedRelation(item)}><span className="rank">{index + 1}</span><span className="recommend-title"><b>{item.column}</b><small>{item.method} · n={number.format(item.sample_size)}</small></span><strong>{Math.abs(item.score).toFixed(3)}</strong></button>)}</div>}
           </article>
           <article className="panel chart-panel">

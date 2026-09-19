@@ -16,11 +16,11 @@ export const api = {
     fetch(`/api/v1/datasets/${id}/query`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<DatasetQueryResult>),
   chartDataset: (id: string, payload: Record<string, unknown>) =>
     fetch(`/api/v1/datasets/${id}/chart`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<DatasetChartResult>),
-  relationships: (id: string, column: string) =>
+  relationships: (id: string, column: string, options: Record<string, unknown> = {}) =>
     fetch(`/api/v1/datasets/${id}/relationships`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ column }),
+      body: JSON.stringify({ column, ...options }),
     }).then(decode<RelationshipResponse>),
   upload: (file: File) => {
     const form = new FormData();
