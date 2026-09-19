@@ -34,7 +34,7 @@ def _apply_filters(frame, filters):
 def query_dataset(dataset_id: str, request: DatasetQuery) -> DatasetQueryResult:
     version = get_version(dataset_id)
     frame = read_frame(dataset_id)
-    required = [column for column in (request.dimension, request.measure) if column]
+    required = [column for column in (request.dimension, request.series, request.measure) if column]
     required.extend(item.column for item in request.filters)
     missing = sorted({column for column in required if column not in frame.columns})
     if missing:
@@ -45,14 +45,16 @@ def query_dataset(dataset_id: str, request: DatasetQuery) -> DatasetQueryResult:
     if request.aggregation != "count" and not request.measure:
         raise ValueError("선택한 집계에는 measure가 필요합니다.")
     if request.dimension:
-        grouped = filtered.groupby(request.dimension, dropna=False)
+        group_columns = [request.dimension] + ([request.series] if request.series else [])
+        grouped = filtered.groupby(group_columns, dropna=False)
         if request.aggregation == "count":
             values = grouped.size() if not request.measure else grouped[request.measure].count()
         else:
             values = getattr(grouped[request.measure], request.aggregation)()
-        result = values.rename("value").reset_index().rename(columns={request.dimension: "category"})
+        result = values.rename("value").reset_index().rename(columns={request.dimension: "category", request.series: "series"})
         is_ordered_dimension = pd.api.types.is_numeric_dtype(filtered[request.dimension]) or pd.api.types.is_datetime64_any_dtype(filtered[request.dimension])
-        result = result.sort_values("category" if is_ordered_dimension else "value", ascending=is_ordered_dimension).head(request.limit)
+        sort_columns = ["category", "series"] if request.series and is_ordered_dimension else (["value"] if not is_ordered_dimension else ["category"])
+        result = result.sort_values(sort_columns, ascending=is_ordered_dimension).head(request.limit)
         rows = json.loads(result.to_json(orient="records", date_format="iso"))
     else:
         if request.aggregation == "count":

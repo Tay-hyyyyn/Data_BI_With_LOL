@@ -56,6 +56,12 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
     catch (error) { setMessage(error instanceof Error ? error.message : "대시보드 생성에 실패했습니다."); }
     finally { setBusy(""); }
   }
+  async function createPatchTrendDashboard() {
+    setBusy("patch-dashboard"); setMessage("");
+    try { const result = await api.createLolPatchTrendDashboard(); setMessage(`${result.name}를 비공개로 저장했습니다. 대시보드 탭에서 불러올 수 있습니다.`); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "비교 대시보드를 생성하지 못했습니다."); }
+    finally { setBusy(""); }
+  }
 
   return <section className="studio lol-studio">
     <div className="lol-safety"><ShieldCheck size={18}/><div><b>개발 데이터 보호 적용</b><span>원본 경기와 파생 데이터는 로컬 비공개로 유지되며 공개 게시가 차단됩니다.</span></div></div>
@@ -67,6 +73,7 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 4</p><h2>분석 마트 생성</h2></div><Play size={19}/></div><p className="lol-card-copy">수집한 경기를 패치별로 분리하고, 해당 Data Dragon 아이템 버전과 자동 매핑합니다.</p><button className="primary" disabled={!!busy || !collection?.matches.length} onClick={() => void process()}>{busy === "process" ? "정규화 중" : "10·15·20분 마트 생성"}</button><small>여러 패치가 섞여도 골드·스탯 추세 비교용 통합 마트를 함께 만듭니다.</small></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>OPTIONAL</p><h2>LOL.PS 벤치마크</h2></div><FileUp size={19}/></div><label>허가받은 집계 파일<input type="file" accept=".csv,.xlsx,.xls,.parquet" onChange={(event) => setBenchmarkFile(event.target.files?.[0] ?? null)}/></label><button className="primary" disabled={!!busy || !benchmarkFile} onClick={() => void uploadBenchmark()}>{busy === "benchmark" ? "검증 중" : "집계 벤치마크 등록"}</button><small>비공개 API 호출 없이 제공받은 파일만 등록하며, 승률·픽률은 0~1로 표준화합니다.</small></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 5</p><h2>BI 시작 대시보드</h2></div><BarChart3 size={19}/></div><label>분석 패치<select value={starterPatch} onChange={(event) => setStarterPatch(event.target.value)}><option value="">패치를 선택하세요</option>{itemDatasets.map((item) => <option key={item.id} value={item.name.replace("LoL items ", "")}>{item.name.replace("LoL items ", "")}</option>)}</select></label><button className="primary" disabled={!!busy || !starterPatch} onClick={() => void createStarterDashboard()}>{busy === "dashboard" ? "생성 중" : "골드·승률 대시보드 만들기"}</button><small>선택한 패치의 골드, AP·AD·AH, 관찰 승률 위젯을 비공개로 저장합니다.</small></article>
+      <article className="panel lol-card"><div className="panel-head"><div><p>STEP 6</p><h2>패치 비교 대시보드</h2></div><BarChart3 size={19}/></div><p className="lol-card-copy">분리 처리한 여러 패치의 골드·인벤토리 스탯과 표본 품질을 같은 시간축에서 비교합니다.</p><button className="primary" disabled={!!busy} onClick={() => void createPatchTrendDashboard()}>{busy === "patch-dashboard" ? "생성 중" : "패치 추세 비교 만들기"}</button><small>통합 추세와 표본 품질 마트가 있어야 하며, 비공개로 저장됩니다.</small></article>
     </div>
     {collection && <article className="panel match-summary"><b>수집 준비 완료</b><span>{collection.matches.length}경기 · 신규 {collection.fetched} · 캐시 {collection.cached}</span><div>{collection.matches.map((item) => <code key={item.match_id}>{item.match_id}{item.cached ? " · cached" : " · new"}</code>)}</div></article>}
   </section>;

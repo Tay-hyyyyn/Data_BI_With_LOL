@@ -37,7 +37,7 @@ export type DatasetQueryResult = {
   dimension: string | null;
   measure: string | null;
   aggregation: string;
-  rows: Array<{ category?: unknown; value: number | null }>;
+  rows: Array<{ category?: unknown; series?: unknown; value: number | null }>;
 };
 
 export type DatasetChartResult = {
@@ -83,6 +83,7 @@ export type DashboardWidget = {
   type: "kpi" | "bar" | "line" | "histogram" | "scatter" | "boxplot" | "heatmap";
   column: string;
   dimension?: string;
+  series?: string;
   secondary?: string;
   aggregation?: "sum" | "mean" | "count" | "min" | "max";
   dataset_id?: string;

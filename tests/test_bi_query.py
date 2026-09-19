@@ -61,3 +61,18 @@ def test_structured_query_keeps_numeric_time_dimension_in_ascending_order(monkey
     result = bi.query_dataset("dataset-1", DatasetQuery(dimension="minute", measure="gold", aggregation="mean"))
 
     assert [row["category"] for row in result.rows] == [10, 15, 20]
+
+
+def test_structured_query_returns_multiple_series_on_one_time_axis(monkeypatch) -> None:
+    frame = pd.DataFrame({"minute": [15, 10, 10, 15], "patch": ["16.18", "16.17", "16.18", "16.17"], "gold": [5100.0, 3000.0, 3200.0, 5000.0]})
+    monkeypatch.setattr(bi, "get_version", lambda _: {"id": "version-1"})
+    monkeypatch.setattr(bi, "read_frame", lambda _: frame)
+
+    result = bi.query_dataset("dataset-1", DatasetQuery(dimension="minute", series="patch", measure="gold", aggregation="mean"))
+
+    assert result.rows == [
+        {"category": 10, "series": "16.17", "value": 3000.0},
+        {"category": 10, "series": "16.18", "value": 3200.0},
+        {"category": 15, "series": "16.17", "value": 5000.0},
+        {"category": 15, "series": "16.18", "value": 5100.0},
+    ]

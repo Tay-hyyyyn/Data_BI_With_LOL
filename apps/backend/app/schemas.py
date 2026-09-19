@@ -150,6 +150,7 @@ class QueryFilter(BaseModel):
 
 class DatasetQuery(BaseModel):
     dimension: str | None = None
+    series: str | None = None
     measure: str | None = None
     aggregation: Literal["sum", "mean", "count", "min", "max"] = "sum"
     filters: list[QueryFilter] = Field(default_factory=list, max_length=20)

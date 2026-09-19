@@ -240,6 +240,24 @@ def create_lol_starter_dashboard(request: LolStarterDashboardRequest) -> Dashboa
     return save_or_update_dashboard(f"LoL 분석 시작 대시보드 {patch}", widgets)
 
 
+@app.post("/api/v1/lol/dashboards/patch-trend", response_model=DashboardSummary, status_code=201)
+def create_lol_patch_trend_dashboard() -> DashboardSummary:
+    """Create a private dashboard that compares all processed LoL patches."""
+    trend = get_dataset_by_name("LoL patch stat trend", "riot-derived-model")
+    coverage = get_dataset_by_name("LoL sample coverage", "riot-derived-model")
+    if not trend or not coverage:
+        raise HTTPException(404, "패치별 경기 마트를 먼저 생성하세요.")
+    widgets = [
+        {"id": "patch-gold", "title": "패치별 분당 평균 보유 골드", "type": "line", "column": "average_total_gold", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": trend.id},
+        {"id": "patch-ad", "title": "패치별 분당 인벤토리 AD", "type": "line", "column": "average_inventory_ad", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": trend.id},
+        {"id": "patch-ap", "title": "패치별 분당 인벤토리 AP", "type": "line", "column": "average_inventory_ap", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": trend.id},
+        {"id": "patch-ah", "title": "패치별 분당 스킬 가속", "type": "line", "column": "average_inventory_ability_haste", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": trend.id},
+        {"id": "coverage-players", "title": "패치별 시간대 표본 참가자 수", "type": "line", "column": "sample_players", "dimension": "minute", "series": "patch", "aggregation": "sum", "dataset_id": coverage.id},
+        {"id": "coverage-inventory", "title": "패치별 인벤토리 결측 비율", "type": "line", "column": "inventory_missing_ratio", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": coverage.id},
+    ]
+    return save_or_update_dashboard("LoL 패치 비교·표본 품질 대시보드", widgets)
+
+
 @app.post("/api/v1/lol/accounts/resolve", response_model=RiotAccountSummary)
 async def resolve_riot_account(request: RiotAccountResolveRequest) -> RiotAccountSummary:
     try:

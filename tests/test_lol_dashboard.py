@@ -26,3 +26,21 @@ def test_lol_starter_dashboard_uses_patch_specific_marts(monkeypatch) -> None:
     assert captured["widgets"][0]["dataset_id"] == "context-1818"
     assert captured["widgets"][4]["dataset_id"] == "timeseries-1818"
     assert captured["widgets"][4]["aggregation"] == "mean"
+
+
+def test_lol_patch_trend_dashboard_uses_trend_and_coverage_marts(monkeypatch) -> None:
+    datasets = {
+        "LoL patch stat trend": SimpleNamespace(id="trend"),
+        "LoL sample coverage": SimpleNamespace(id="coverage"),
+    }
+    monkeypatch.setattr(main, "get_dataset_by_name", lambda name, _source: datasets.get(name))
+    captured = {}
+    monkeypatch.setattr(main, "save_or_update_dashboard", lambda name, widgets, filters=None: captured.update(name=name, widgets=widgets) or SimpleNamespace(name=name, widgets=widgets))
+
+    result = main.create_lol_patch_trend_dashboard()
+
+    assert result.name == "LoL 패치 비교·표본 품질 대시보드"
+    assert len(captured["widgets"]) == 6
+    assert all(widget["series"] == "patch" for widget in captured["widgets"])
+    assert captured["widgets"][0]["dataset_id"] == "trend"
+    assert captured["widgets"][4]["dataset_id"] == "coverage"
