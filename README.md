@@ -107,7 +107,7 @@ API를 먼저 실행한 뒤 다음 서버를 stdio MCP로 등록합니다.
 python apps/backend/app/mcp_server.py
 ```
 
-`.mcp.json.example`을 `.mcp.json`으로 복사해 호환 클라이언트에 연결할 수 있습니다. 제공 도구는 `list_datasets`, `describe_dataset`, `preview_dataset`, `query_dataset`, `analyze_column_relationships`, `generate_chart_spec`, `get_job_status`이며 임의 SQL·파일 경로·JavaScript 실행은 노출하지 않습니다.
+`.mcp.json.example`을 `.mcp.json`으로 복사해 호환 클라이언트에 연결할 수 있습니다. 제공 도구는 `list_datasets`, `describe_dataset`, `preview_dataset`, `query_dataset`, `analyze_column_relationships`, `generate_chart_spec`, `get_job_status`이며 `query_dataset`은 선택적으로 `dimension`과 `series`를 받아 웹과 같은 다중 계열 집계를 반환합니다. 임의 SQL·파일 경로·JavaScript 실행은 노출하지 않습니다.
 
 상세 구조와 불변 조건은 [docs/architecture.md](docs/architecture.md)를 참고하세요.
 

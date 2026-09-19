@@ -47,11 +47,12 @@ def query_dataset(
     measure: str,
     aggregation: str = "sum",
     dimension: str | None = None,
+    series: str | None = None,
     filter_column: str | None = None,
     filter_value: str | None = None,
     limit: int = 100,
 ) -> dict[str, Any]:
-    """임의 SQL 없이 게시 버전에 허용된 집계·그룹·동등 필터를 적용합니다."""
+    """임의 SQL 없이 게시 버전에 집계·그룹·선택 계열·동등 필터를 적용합니다."""
     filters = []
     if filter_column and filter_value is not None:
         filters.append({"column": filter_column, "operator": "eq", "value": filter_value})
@@ -61,6 +62,7 @@ def query_dataset(
             "measure": measure,
             "aggregation": aggregation,
             "dimension": dimension,
+            "series": series,
             "filters": filters,
             "limit": min(max(limit, 1), 1_000),
         },
