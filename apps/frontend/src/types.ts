@@ -89,6 +89,15 @@ export type DashboardWidget = {
   dataset_id?: string;
 };
 
+export type Metric = {
+  id: string;
+  name: string;
+  dataset_id: string;
+  unit?: string | null;
+  description?: string | null;
+  value: number;
+};
+
 export type Job = {
   id: string;
   job_type: string;

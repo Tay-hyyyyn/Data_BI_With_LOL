@@ -1,4 +1,4 @@
-import type { Dashboard, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
+import type { Dashboard, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Metric, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
 
 async function decode<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -29,6 +29,8 @@ export const api = {
   },
   transform: (id: string, payload: Record<string, unknown>) =>
     fetch(`/api/v1/datasets/${id}/transform`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Record<string, unknown>>),
+  listMetrics: (datasetId?: string) => fetch(`/api/v1/metrics${datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : ""}`).then(decode<Metric[]>),
+  saveMetric: (payload: Record<string, unknown>) => fetch("/api/v1/metrics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Metric>),
   listDashboards: () => fetch("/api/v1/dashboards").then(decode<Dashboard[]>),
   getDashboard: (id: string) => fetch(`/api/v1/dashboards/${id}`).then(decode<Dashboard>),
   saveDashboard: (payload: Record<string, unknown>) =>
