@@ -165,6 +165,27 @@ def build_gold_win_timeseries(context: pd.DataFrame, bucket_size: int = 500) -> 
     return output.groupby(dimensions, dropna=False).agg(**aggregations).reset_index()
 
 
+def build_patch_stat_trend(context: pd.DataFrame) -> pd.DataFrame:
+    """Summarize compatible patch-specific context marts for cross-patch BI."""
+    if context.empty:
+        return context.copy()
+    output = context.copy()
+    output["patch"] = output["game_version"].astype(str).str.split(".").str[:2].str.join(".")
+    aggregations: dict[str, tuple[str, str]] = {
+        "sample_players": ("participant_id", "count"),
+        "sample_matches": ("match_id", "nunique"),
+        "observed_win_rate": ("observed_win", "mean"),
+        "average_total_gold": ("total_gold", "mean"),
+        "average_inventory_cost": ("inventory_cost", "mean"),
+        "average_team_gold_diff": ("team_gold_diff", "mean"),
+        "average_lane_gold_diff": ("lane_gold_diff", "mean"),
+    }
+    for column in output.columns:
+        if column.startswith("inventory_") and column != "inventory_cost":
+            aggregations[f"average_{column}"] = (column, "mean")
+    return output.groupby(["patch", "minute"], dropna=False).agg(**aggregations).reset_index()
+
+
 def build_observed_win_summary(context: pd.DataFrame) -> pd.DataFrame:
     if context.empty:
         return context.copy()

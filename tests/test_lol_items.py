@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_frame, reference_prices
+from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, estimate_gold_values, item_frame, reference_prices
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:
@@ -46,6 +46,9 @@ def test_context_mart_adds_inventory_and_gold_differences() -> None:
     timeseries = build_gold_win_timeseries(mart, bucket_size=500)
     assert {"gold_bucket_start", "gold_bucket_end", "observed_win_rate", "average_inventory_ad"}.issubset(timeseries.columns)
     assert timeseries["sample_players"].sum() == len(mart)
+    trend = build_patch_stat_trend(mart)
+    assert {"patch", "minute", "average_inventory_ad", "sample_matches"}.issubset(trend.columns)
+    assert trend.iloc[0]["patch"] == "16.18"
 
 
 def test_item_event_mart_marks_final_item_purchase() -> None:

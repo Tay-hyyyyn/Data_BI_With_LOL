@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import httpx
+import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,7 +15,7 @@ from .services.relationships import analyze_cached
 from .services.transforms import run_recipe
 from .lol.client import RiotClient, RiotKeyError, fetch_data_dragon_bundle
 from .lol.benchmark import read_lolps_benchmark_upload
-from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, estimate_gold_values, item_efficiency, item_frame, reference_prices
+from .lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, estimate_gold_values, item_efficiency, item_frame, reference_prices
 from .lol.static import champion_frame, patch_key, rune_frame
 from .lol.timeline import normalize_persisted
 from .services.bi import build_chart, clone_dashboard, create_metric, get_dashboard, list_dashboards, query_dataset, save_dashboard, save_or_update_dashboard, set_dashboard_published, update_dashboard
@@ -296,6 +297,56 @@ def process_lol_matches(request: RiotMatchProcessRequest) -> dict:
             result["gold_win_timeseries"] = sync_named_dataset(build_gold_win_timeseries(mart), f"LoL gold and stat win-rate timeseries {patch_label}", "riot-derived-model")
             result["item_event_mart"] = sync_named_dataset(build_item_event_mart(events, items), f"LoL item completion events {patch_label}", "riot-derived-model")
         return result
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@app.post("/api/v1/lol/matches/process-grouped")
+async def process_lol_matches_grouped(request: RiotMatchProcessRequest) -> dict:
+    """Process a mixed-patch collection safely rather than applying one item catalog to all games."""
+    try:
+        match_ids_by_patch: dict[str, list[str]] = {}
+        for match_id in request.match_ids:
+            path = settings.root / "bronze" / "riot" / "matches" / match_id / "match.json"
+            if not path.is_file():
+                raise FileNotFoundError(f"수집되지 않은 match_id: {match_id}")
+            import json
+            payload = json.loads(path.read_text("utf-8"))
+            match_patch = patch_key(str(payload.get("info", {}).get("gameVersion", "")))
+            match_ids_by_patch.setdefault(match_patch, []).append(match_id)
+
+        processed: dict[str, dict] = {}
+        context_frames = []
+        for match_patch, patch_match_ids in sorted(match_ids_by_patch.items()):
+            items = next(
+                (
+                    dataset for dataset in list_datasets()
+                    if dataset.source_type == "riot-data-dragon"
+                    and dataset.name.startswith("LoL items ")
+                    and patch_key(dataset.name.removeprefix("LoL items ")) == match_patch
+                ),
+                None,
+            )
+            if not items:
+                synced = await sync_lol_static(LolStaticSyncRequest(version=f"{match_patch}.1"))
+                items = synced["items"]
+            result = process_lol_matches(RiotMatchProcessRequest(
+                match_ids=patch_match_ids,
+                snapshot_minutes=request.snapshot_minutes,
+                item_dataset_id=items.id,
+            ))
+            processed[match_patch] = result
+            context_frames.append(read_frame(result["context_mart"].id))
+        if context_frames:
+            trend = sync_named_dataset(
+                build_patch_stat_trend(pd.concat(context_frames, ignore_index=True)),
+                "LoL patch stat trend",
+                "riot-derived-model",
+            )
+            return {"patches": processed, "patch_stat_trend": trend}
+        return {"patches": processed}
     except FileNotFoundError as error:
         raise HTTPException(404, str(error)) from error
     except ValueError as error:
