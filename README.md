@@ -84,6 +84,16 @@ docker compose up --build
 
 Airflow는 `/api/v1/pipelines?enabled=true`에서 활성 정의만 읽으며 동일 `idempotency_key` 재실행은 기존 작업을 반환합니다. 기본 BI는 Airflow가 없어도 로컬 `JobRunner`로 동일 작업을 수행합니다.
 
+## 백업 및 검증
+
+실행 중인 SQLite WAL 데이터베이스와 게시된 Parquet를 일관된 ZIP으로 백업합니다. 기본 백업에는 원본 업로드와 Riot Bronze 데이터가 포함되지 않으며, 필요한 경우에만 명시적으로 포함합니다. `.env`와 API 키는 어떤 경우에도 백업하지 않습니다.
+
+```bash
+python scripts/backup_data.py
+python scripts/verify_backup.py backups/data-bi-YYYYMMDD-HHMMSS.zip
+python scripts/backup_data.py --include-raw
+```
+
 ## FastMCP
 
 API를 먼저 실행한 뒤 다음 서버를 stdio MCP로 등록합니다.
