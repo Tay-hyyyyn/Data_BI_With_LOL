@@ -73,17 +73,25 @@ def analyze(dataset_id: str, request: RelationshipRequest) -> RelationshipRespon
     candidates.sort(key=lambda item: (item.null_ratio, item.unique_count == profile.row_count, -item.unique_count))
     candidates = candidates[: request.candidate_limit]
     frame = read_frame(dataset_id)
-    sampled = len(frame) > request.sample_limit
-    if sampled:
-        frame = frame.sample(request.sample_limit, random_state=request.seed)
     if request.entity_key:
         if request.entity_key not in frame.columns:
             raise ValueError("entity_key가 데이터셋에 없습니다.")
-        aggregations = {
-            column: ("mean" if pd.api.types.is_numeric_dtype(frame[column]) else "first")
-            for column in frame.columns if column != request.entity_key
-        }
-        frame = frame.groupby(request.entity_key, dropna=False, as_index=False).agg(aggregations)
+        grain = request.analysis_grain or "mean"
+        if grain == "latest":
+            if not request.time_column or request.time_column not in frame.columns:
+                raise ValueError("latest 분석 단위에는 데이터셋의 time_column이 필요합니다.")
+            frame = frame.sort_values(request.time_column, kind="stable").drop_duplicates(request.entity_key, keep="last")
+        else:
+            aggregations = {
+                column: ("mean" if pd.api.types.is_numeric_dtype(frame[column]) else "first")
+                for column in frame.columns if column != request.entity_key
+            }
+            frame = frame.groupby(request.entity_key, dropna=False, as_index=False).agg(aggregations)
+    elif request.analysis_grain:
+        raise ValueError("analysis_grain에는 entity_key가 필요합니다.")
+    sampled = len(frame) > request.sample_limit
+    if sampled:
+        frame = frame.sample(request.sample_limit, random_state=request.seed)
     items: list[RelationshipItem] = []
     for candidate in candidates:
         pair = frame[[request.column, candidate.name]].dropna()
@@ -92,12 +100,16 @@ def analyze(dataset_id: str, request: RelationshipRequest) -> RelationshipRespon
             continue
         a, b = selected_meta.semantic_type, candidate.semantic_type
         if a == "numeric" and b == "numeric":
-            score = float(stats.spearmanr(pair.iloc[:, 0], pair.iloc[:, 1]).statistic or 0.0)
-            clipped = pair.copy()
-            for column in clipped.columns:
-                low, high = clipped[column].quantile([0.01, 0.99])
-                clipped[column] = clipped[column].clip(low, high)
-            pearson = float(stats.pearsonr(clipped.iloc[:, 0], clipped.iloc[:, 1]).statistic or 0.0)
+            numeric_pair = pair.astype(float)
+            if numeric_pair.iloc[:, 0].nunique() < 2 or numeric_pair.iloc[:, 1].nunique() < 2:
+                score, pearson = 0.0, 0.0
+            else:
+                score = float(stats.spearmanr(numeric_pair.iloc[:, 0], numeric_pair.iloc[:, 1]).statistic or 0.0)
+                clipped = numeric_pair.copy()
+                for column in clipped.columns:
+                    low, high = clipped[column].quantile([0.01, 0.99])
+                    clipped[column] = clipped[column].clip(low, high)
+                pearson = float(stats.pearsonr(clipped.iloc[:, 0], clipped.iloc[:, 1]).statistic or 0.0)
             relation, method, signed = "numeric_numeric", "Spearman", True
         elif a == "categorical" and b == "categorical":
             if max(pair.iloc[:, 0].nunique(), pair.iloc[:, 1].nunique()) > 30:
@@ -121,7 +133,8 @@ def analyze(dataset_id: str, request: RelationshipRequest) -> RelationshipRespon
             continue
         if not math.isfinite(score):
             score = 0.0
-        reason = f"유효 표본 {n:,}개에서 {method} 값이 {score:.3f}입니다."
+        grain_note = f"{request.entity_key} 기준 {request.analysis_grain or 'mean'} 단위로 정리한 " if request.entity_key else ""
+        reason = f"{grain_note}유효 표본 {n:,}개에서 {method} 값이 {score:.3f}입니다."
         if relation == "numeric_numeric":
             reason += f" 상·하위 1% 윈저라이징 Pearson 보조값은 {pearson:.3f}입니다."
         items.append(RelationshipItem(

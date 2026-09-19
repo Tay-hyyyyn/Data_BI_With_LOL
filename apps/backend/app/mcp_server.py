@@ -68,9 +68,19 @@ def query_dataset(
 
 
 @mcp.tool()
-def analyze_column_relationships(dataset_id: str, column: str, limit: int = 5) -> dict[str, Any]:
-    """선택한 컬럼과 통계적 관계가 큰 컬럼 및 차트 초안을 반환합니다."""
-    return _post(f"/datasets/{dataset_id}/relationships", {"column": column, "result_limit": limit})
+def analyze_column_relationships(
+    dataset_id: str,
+    column: str,
+    limit: int = 5,
+    entity_key: str | None = None,
+    time_column: str | None = None,
+    analysis_grain: str | None = None,
+) -> dict[str, Any]:
+    """선택한 컬럼과 통계적 관계를 반환하며 반복측정 데이터는 entity/time/grain으로 정리할 수 있습니다."""
+    return _post(f"/datasets/{dataset_id}/relationships", {
+        "column": column, "result_limit": limit, "entity_key": entity_key,
+        "time_column": time_column, "analysis_grain": analysis_grain,
+    })
 
 
 @mcp.tool()

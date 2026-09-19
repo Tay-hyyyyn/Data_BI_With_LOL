@@ -24,6 +24,7 @@ def normalize_match(match: dict, timeline: dict, snapshot_minutes: list[int]) ->
         participants[pid] = participant
         participant_rows.append({
             "match_id": match_id, "participant_id": pid,
+            "match_participant_key": f"{match_id}:{pid}",
             "puuid_hash": _subject_hash(participant.get("puuid", "")),
             "game_version": info.get("gameVersion"), "queue_id": info.get("queueId"),
             "champion_id": participant.get("championId"), "champion_name": participant.get("championName"),
@@ -70,6 +71,7 @@ def normalize_match(match: dict, timeline: dict, snapshot_minutes: list[int]) ->
             position = state.get("position", {})
             state_rows.append({
                 "match_id": match_id, "participant_id": pid, "minute": minute,
+                "match_participant_key": f"{match_id}:{pid}",
                 "game_version": info.get("gameVersion"), "team_id": participant.get("teamId"),
                 "champion_id": participant.get("championId"), "role": participant.get("teamPosition"), "win": bool(participant.get("win")),
                 "total_gold": state.get("totalGold"), "current_gold": state.get("currentGold"),

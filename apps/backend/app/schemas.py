@@ -45,7 +45,7 @@ class RelationshipRequest(BaseModel):
     seed: int = 42
     entity_key: str | None = None
     time_column: str | None = None
-    analysis_grain: str | None = None
+    analysis_grain: Literal["mean", "latest"] | None = None
 
 
 class RelationshipItem(BaseModel):
