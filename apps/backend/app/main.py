@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .api.bi import router as bi_router
 from .database import initialize_database
 from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStarterDashboardRequest, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
 from .services.datasets import create_dataset_from_frame, get_dataset_by_name, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(bi_router)
 
 
 @app.get("/api/health")
@@ -375,62 +377,3 @@ async def process_lol_matches_grouped(request: RiotMatchProcessRequest) -> dict:
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
 
-
-@app.post("/api/v1/metrics", response_model=MetricSummary, status_code=201)
-def define_metric(metric: MetricWrite) -> MetricSummary:
-    try:
-        return create_metric(metric)
-    except (KeyError, ValueError) as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.get("/api/v1/metrics", response_model=list[MetricSummary])
-def metrics(dataset_id: str | None = None) -> list[MetricSummary]:
-    try:
-        return list_metrics(dataset_id)
-    except (KeyError, ValueError) as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.get("/api/v1/dashboards", response_model=list[DashboardSummary])
-def dashboards() -> list[DashboardSummary]:
-    return list_dashboards()
-
-
-@app.get("/api/v1/dashboards/{dashboard_id}", response_model=DashboardSummary)
-def dashboard(dashboard_id: str) -> DashboardSummary:
-    try:
-        return get_dashboard(dashboard_id)
-    except KeyError as error:
-        raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/dashboards", response_model=DashboardSummary, status_code=201)
-def create_dashboard(payload: DashboardWrite) -> DashboardSummary:
-    return save_dashboard(payload)
-
-
-@app.put("/api/v1/dashboards/{dashboard_id}", response_model=DashboardSummary)
-def edit_dashboard(dashboard_id: str, payload: DashboardWrite) -> DashboardSummary:
-    try:
-        return update_dashboard(dashboard_id, payload)
-    except KeyError as error:
-        raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/dashboards/{dashboard_id}/clone", response_model=DashboardSummary, status_code=201)
-def duplicate_dashboard(dashboard_id: str) -> DashboardSummary:
-    try:
-        return clone_dashboard(dashboard_id)
-    except KeyError as error:
-        raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/dashboards/{dashboard_id}/publish", response_model=DashboardSummary)
-def publish_dashboard(dashboard_id: str, published: bool = True) -> DashboardSummary:
-    try:
-        return set_dashboard_published(dashboard_id, published)
-    except KeyError as error:
-        raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
-    except PermissionError as error:
-        raise HTTPException(403, str(error)) from error
