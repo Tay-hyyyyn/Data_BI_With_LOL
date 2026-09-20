@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .api.bi import router as bi_router
 from .api.datasets import router as datasets_router
+from .api.operations import router as operations_router
 from .database import initialize_database
 from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStarterDashboardRequest, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
 from .services.datasets import create_dataset_from_frame, get_dataset_by_name, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
@@ -43,69 +44,12 @@ app.add_middleware(
 )
 app.include_router(bi_router)
 app.include_router(datasets_router)
+app.include_router(operations_router)
 
 
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "environment": settings.environment}
-
-
-@app.get("/api/v1/jobs", response_model=list[JobSummary])
-def jobs(limit: int = 50) -> list[JobSummary]:
-    return list_jobs(min(max(limit, 1), 200))
-
-
-@app.get("/api/v1/jobs/{job_id}", response_model=JobSummary)
-def job(job_id: str) -> JobSummary:
-    try:
-        return get_job(job_id)
-    except KeyError as error:
-        raise HTTPException(404, "작업을 찾을 수 없습니다.") from error
-
-
-@app.get("/api/v1/pipelines", response_model=list[PipelineSummary])
-def pipelines(enabled: bool | None = None) -> list[PipelineSummary]:
-    return list_pipelines(enabled)
-
-
-@app.post("/api/v1/pipelines", response_model=PipelineSummary, status_code=201)
-def register_pipeline(payload: PipelineWrite) -> PipelineSummary:
-    try:
-        return create_pipeline(payload)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/pipelines/{pipeline_id}/enabled", response_model=PipelineSummary)
-def toggle_pipeline(pipeline_id: str, enabled: bool) -> PipelineSummary:
-    try:
-        return set_pipeline_enabled(pipeline_id, enabled)
-    except KeyError as error:
-        raise HTTPException(404, "파이프라인을 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/pipelines/{pipeline_id}/run", response_model=JobSummary, status_code=202)
-def run_pipeline(pipeline_id: str, request: PipelineRunRequest) -> JobSummary:
-    try:
-        pipeline = get_pipeline(pipeline_id)
-        if not pipeline.enabled:
-            raise HTTPException(409, "비활성 파이프라인은 실행할 수 없습니다.")
-        previous = existing_run_job(pipeline_id, request.idempotency_key)
-        if previous:
-            return get_job(previous)
-        if pipeline.pipeline_type == "relationships":
-            relation_request = RelationshipRequest.model_validate(pipeline.config)
-            task = lambda: analyze_cached(pipeline.dataset_id, relation_request).model_dump(mode="json")
-        else:
-            transform_request = TransformRequest.model_validate(pipeline.config)
-            task = lambda: run_recipe(pipeline.dataset_id, transform_request).model_dump(mode="json")
-        job = job_runner.submit(f"pipeline:{pipeline.pipeline_type}", task)
-        record_run(pipeline_id, request.idempotency_key, job.id)
-        return job
-    except KeyError as error:
-        raise HTTPException(404, "파이프라인 또는 작업을 찾을 수 없습니다.") from error
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
 
 
 @app.post("/api/v1/lol/static/sync")
