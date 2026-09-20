@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import uuid
 
 import numpy as np
@@ -287,3 +288,26 @@ def set_dashboard_published(dashboard_id: str, published: bool) -> DashboardSumm
     if not updated:
         raise KeyError(dashboard_id)
     return next(item for item in list_dashboards() if item.id == dashboard_id)
+
+
+def create_dashboard_share(dashboard_id: str) -> dict:
+    get_dashboard(dashboard_id)
+    token, now = secrets.token_urlsafe(24), utcnow()
+    with db() as connection:
+        connection.execute("INSERT INTO dashboard_shares(token,dashboard_id,created_at) VALUES(?,?,?)", (token, dashboard_id, now))
+    return {"token": token, "dashboard_id": dashboard_id, "created_at": now, "revoked_at": None}
+
+
+def get_shared_dashboard(token: str) -> DashboardSummary:
+    with db() as connection:
+        row = connection.execute("SELECT dashboard_id FROM dashboard_shares WHERE token=? AND revoked_at IS NULL", (token,)).fetchone()
+    if not row:
+        raise KeyError(token)
+    return get_dashboard(row["dashboard_id"])
+
+
+def revoke_dashboard_share(token: str) -> None:
+    with db() as connection:
+        updated = connection.execute("UPDATE dashboard_shares SET revoked_at=? WHERE token=? AND revoked_at IS NULL", (utcnow(), token)).rowcount
+    if not updated:
+        raise KeyError(token)

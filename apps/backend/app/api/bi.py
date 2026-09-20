@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ..schemas import DashboardSummary, DashboardWrite, MetricSummary, MetricWrite
+from ..schemas import DashboardShare, DashboardSummary, DashboardWrite, MetricSummary, MetricWrite
 from ..services.bi import (
     clone_dashboard,
+    create_dashboard_share,
     create_marketing_starter_dashboard,
     create_metric,
     get_dashboard,
+    get_shared_dashboard,
     list_dashboards,
     list_metrics,
     save_dashboard,
     set_dashboard_published,
+    revoke_dashboard_share,
     update_dashboard,
 )
 
@@ -85,3 +88,27 @@ def publish_dashboard(dashboard_id: str, published: bool = True) -> DashboardSum
         raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
     except PermissionError as error:
         raise HTTPException(403, str(error)) from error
+
+
+@router.post("/api/v1/dashboards/{dashboard_id}/shares", response_model=DashboardShare, status_code=201)
+def share_dashboard(dashboard_id: str) -> DashboardShare:
+    try:
+        return DashboardShare(**create_dashboard_share(dashboard_id))
+    except KeyError as error:
+        raise HTTPException(404, "대시보드를 찾을 수 없습니다.") from error
+
+
+@router.get("/api/v1/dashboard-shares/{token}", response_model=DashboardSummary)
+def shared_dashboard(token: str) -> DashboardSummary:
+    try:
+        return get_shared_dashboard(token)
+    except KeyError as error:
+        raise HTTPException(404, "공유 링크가 없거나 해제되었습니다.") from error
+
+
+@router.delete("/api/v1/dashboard-shares/{token}", status_code=204)
+def revoke_share(token: str) -> None:
+    try:
+        revoke_dashboard_share(token)
+    except KeyError as error:
+        raise HTTPException(404, "공유 링크가 없거나 이미 해제되었습니다.") from error

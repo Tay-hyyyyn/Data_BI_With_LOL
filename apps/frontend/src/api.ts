@@ -1,4 +1,4 @@
-import type { Dashboard, DataSource, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Metric, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
+import type { AnalysisModel, AnalysisModelRun, AuthStatus, Dashboard, DashboardShare, DataSource, DataSourceStatus, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Metric, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
 
 async function decode<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -9,6 +9,9 @@ async function decode<T>(response: Response): Promise<T> {
 }
 
 export const api = {
+  authStatus: () => fetch("/api/v1/auth/me").then(decode<AuthStatus>),
+  login: (email: string, password: string) => fetch("/api/v1/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) }).then(decode<AuthStatus>),
+  logout: () => fetch("/api/v1/auth/logout", { method: "POST" }),
   listDatasets: () => fetch("/api/v1/datasets").then(decode<Dataset[]>),
   profile: (id: string) => fetch(`/api/v1/datasets/${id}/profile`).then(decode<Profile>),
   preview: (id: string) => fetch(`/api/v1/datasets/${id}/preview?limit=100`).then(decode<Preview>),
@@ -41,7 +44,11 @@ export const api = {
     fetch(`/api/v1/dashboards/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Dashboard>),
   cloneDashboard: (id: string) => fetch(`/api/v1/dashboards/${id}/clone`, { method: "POST" }).then(decode<Dashboard>),
   publishDashboard: (id: string, published: boolean) => fetch(`/api/v1/dashboards/${id}/publish?published=${published}`, { method: "POST" }).then(decode<Dashboard>),
+  createDashboardShare: (id: string) => fetch(`/api/v1/dashboards/${id}/shares`, { method: "POST" }).then(decode<DashboardShare>),
+  getSharedDashboard: (token: string) => fetch(`/api/v1/dashboard-shares/${encodeURIComponent(token)}`).then(decode<Dashboard>),
+  revokeDashboardShare: (token: string) => fetch(`/api/v1/dashboard-shares/${encodeURIComponent(token)}`, { method: "DELETE" }),
   listJobs: () => fetch("/api/v1/jobs").then(decode<Job[]>),
+  listAlerts: () => fetch("/api/v1/operations/alerts").then(decode<Array<{ kind: string; id: string; title: string; message: string | null; created_at: string }>>),
   queueRelationships: (id: string, column: string) =>
     fetch(`/api/v1/datasets/${id}/relationships/jobs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ column }) }).then(decode<Job>),
   listPipelines: () => fetch("/api/v1/pipelines").then(decode<Pipeline[]>),
@@ -51,7 +58,12 @@ export const api = {
   listSources: () => fetch("/api/v1/sources").then(decode<DataSource[]>),
   createSource: (payload: Record<string, unknown>) => fetch("/api/v1/sources", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<DataSource>),
   toggleSource: (id: string, enabled: boolean) => fetch(`/api/v1/sources/${id}/enabled?enabled=${enabled}`, { method: "POST" }).then(decode<DataSource>),
-  syncSource: (id: string, idempotencyKey: string, mode: "full" | "incremental") => fetch(`/api/v1/sources/${id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey, mode }) }).then(decode<Job>),
+  sourceStatus: (id: string) => fetch(`/api/v1/sources/${id}/status`).then(decode<DataSourceStatus>),
+  syncSource: (id: string, idempotencyKey: string, mode: "full" | "incremental", acceptSchemaChange = false) => fetch(`/api/v1/sources/${id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey, mode, accept_schema_change: acceptSchemaChange }) }).then(decode<Job>),
+  listModels: () => fetch("/api/v1/models").then(decode<AnalysisModel[]>),
+  createModel: (payload: Record<string, unknown>) => fetch("/api/v1/models", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<AnalysisModel>),
+  buildModel: (id: string) => fetch(`/api/v1/models/${id}/build`, { method: "POST" }).then(decode<Job>),
+  listModelRuns: (id: string) => fetch(`/api/v1/models/${id}/runs`).then(decode<AnalysisModelRun[]>),
   syncLolStatic: (version?: string) => fetch("/api/v1/lol/static/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: version || null, bootstrap_samples: 200 }) }).then(decode<LolStaticSync>),
   createLolStarterDashboard: (patch: string) => fetch("/api/v1/lol/dashboards/starter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patch }) }).then(decode<Dashboard>),
   createLolPatchTrendDashboard: () => fetch("/api/v1/lol/dashboards/patch-trend", { method: "POST" }).then(decode<Dashboard>),

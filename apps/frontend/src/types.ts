@@ -120,6 +120,8 @@ export type Pipeline = {
   updated_at: string;
 };
 
+export type DashboardShare = { token: string; dashboard_id: string; created_at: string; revoked_at: string | null };
+
 export type DataSource = {
   id: string;
   name: string;
@@ -136,6 +138,39 @@ export type DataSource = {
   created_at: string;
   updated_at: string;
 };
+
+export type SourceSyncEvent = {
+  id: string;
+  source_id: string;
+  mode: "full" | "incremental";
+  status: "published" | "unchanged" | "failed" | "schema_changed";
+  synced_rows: number;
+  row_count: number | null;
+  message: string | null;
+  created_at: string;
+};
+
+export type DataSourceStatus = {
+  source: DataSource;
+  quality: { dataset_id: string; row_count: number; column_count: number; null_ratio_mean: number; identifier_columns: string[] } | null;
+  quality_history: Array<{ row_count: number; column_count: number; null_ratio_mean: number; created_at: string }>;
+  events: SourceSyncEvent[];
+};
+
+export type AnalysisModel = {
+  id: string;
+  name: string;
+  base_dataset_id: string;
+  joins: Array<{ dataset_id: string; left_on: string[]; right_on: string[]; how: "left" | "inner"; cardinality?: string | null }>;
+  output_dataset_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisModelRun = { id: string; model_id: string; output_dataset_id: string | null; input_versions: Record<string, string>; row_count: number | null; status: "published" | "failed"; message: string | null; created_at: string };
+
+export type AuthUser = { id: string; email: string; role: "admin" | "analyst" | "viewer"; created_at: string };
+export type AuthStatus = { enabled: boolean; user: AuthUser | null };
 
 export type RiotAccount = { puuid: string; game_name: string; tag_line: string };
 export type LolStaticSync = {

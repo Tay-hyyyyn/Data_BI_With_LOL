@@ -115,6 +115,79 @@ CREATE TABLE IF NOT EXISTS source_sync_runs (
     created_at TEXT NOT NULL,
     PRIMARY KEY(source_id, idempotency_key)
 );
+CREATE TABLE IF NOT EXISTS source_schema_snapshots (
+    source_id TEXT PRIMARY KEY REFERENCES data_sources(id) ON DELETE CASCADE,
+    schema_hash TEXT NOT NULL,
+    schema_json TEXT NOT NULL,
+    captured_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS source_sync_events (
+    id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL,
+    status TEXT NOT NULL,
+    synced_rows INTEGER NOT NULL DEFAULT 0,
+    row_count INTEGER,
+    message TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_source_sync_events_source_created ON source_sync_events(source_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS analysis_models (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    base_dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE RESTRICT,
+    joins_json TEXT NOT NULL,
+    output_dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS analysis_model_runs (
+    id TEXT PRIMARY KEY,
+    model_id TEXT NOT NULL REFERENCES analysis_models(id) ON DELETE CASCADE,
+    output_dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    input_versions_json TEXT NOT NULL,
+    row_count INTEGER,
+    status TEXT NOT NULL,
+    message TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_analysis_model_runs_model_created ON analysis_model_runs(model_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('admin','analyst','viewer')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE TABLE IF NOT EXISTS dashboard_shares (
+    token TEXT PRIMARY KEY,
+    dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_dashboard_shares_dashboard ON dashboard_shares(dashboard_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS source_quality_snapshots (
+    id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+    dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+    row_count INTEGER NOT NULL,
+    column_count INTEGER NOT NULL,
+    null_ratio_mean REAL NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_source_quality_snapshots_source_created ON source_quality_snapshots(source_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS audit_events (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT,
+    actor_role TEXT,
+    action TEXT NOT NULL,
+    resource_path TEXT NOT NULL,
+    outcome INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_events_created ON audit_events(created_at DESC);
 CREATE TABLE IF NOT EXISTS pipeline_runs (
     pipeline_id TEXT NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
     idempotency_key TEXT NOT NULL,

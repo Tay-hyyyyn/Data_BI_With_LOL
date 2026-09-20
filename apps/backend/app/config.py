@@ -18,6 +18,11 @@ class Settings:
     max_upload_bytes: int
     cors_origins: tuple[str, ...]
     riot_enable_public_data: bool
+    auth_required: bool
+    auth_secret: str
+    admin_email: str | None
+    admin_password: str | None
+    auth_cookie_secure: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -34,6 +39,11 @@ class Settings:
             max_upload_bytes=int(os.getenv("DATA_BI_MAX_UPLOAD_MB", "100")) * 1024 * 1024,
             cors_origins=origins,
             riot_enable_public_data=os.getenv("RIOT_ENABLE_PUBLIC_DATA", "false").lower() == "true",
+            auth_required=os.getenv("DATA_BI_AUTH_REQUIRED", "false").lower() == "true",
+            auth_secret=os.getenv("DATA_BI_AUTH_SECRET", ""),
+            admin_email=os.getenv("DATA_BI_ADMIN_EMAIL") or None,
+            admin_password=os.getenv("DATA_BI_ADMIN_PASSWORD") or None,
+            auth_cookie_secure=os.getenv("DATA_BI_AUTH_COOKIE_SECURE", "false").lower() == "true",
         )
 
 

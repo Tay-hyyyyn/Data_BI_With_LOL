@@ -11,14 +11,19 @@ mcp = FastMCP("Data-BI-With-LoL")
 BASE_URL = os.getenv("DATA_BI_API_URL", "http://127.0.0.1:8000/api/v1")
 
 
+def _headers() -> dict[str, str]:
+    token = os.getenv("DATA_BI_MCP_AUTH_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _get(path: str) -> Any:
-    response = httpx.get(f"{BASE_URL}{path}", timeout=30)
+    response = httpx.get(f"{BASE_URL}{path}", headers=_headers(), timeout=30)
     response.raise_for_status()
     return response.json()
 
 
 def _post(path: str, payload: dict[str, Any]) -> Any:
-    response = httpx.post(f"{BASE_URL}{path}", json=payload, timeout=60)
+    response = httpx.post(f"{BASE_URL}{path}", json=payload, headers=_headers(), timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -33,6 +38,12 @@ def list_datasets() -> dict[str, Any]:
 def list_data_sources() -> dict[str, Any]:
     """읽기 전용 DB 소스와 마지막 동기화·게시 상태를 반환합니다. 연결 URL이나 비밀번호는 노출하지 않습니다."""
     return {"sources": _get("/sources")}
+
+
+@mcp.tool()
+def list_analysis_models() -> dict[str, Any]:
+    """저장된 분석 데이터 모델과 마지막으로 게시된 결과 데이터셋을 반환합니다."""
+    return {"models": _get("/models")}
 
 
 @mcp.tool()

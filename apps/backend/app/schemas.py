@@ -254,3 +254,77 @@ class DataSourceSummary(DataSourceWrite):
 class SourceSyncRequest(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=200)
     mode: Literal["full", "incremental"] = "incremental"
+    accept_schema_change: bool = False
+
+
+class SourceSyncEvent(BaseModel):
+    id: str
+    source_id: str
+    mode: Literal["full", "incremental"]
+    status: Literal["published", "unchanged", "failed", "schema_changed"]
+    synced_rows: int
+    row_count: int | None = None
+    message: str | None = None
+    created_at: str
+
+
+class ModelJoin(BaseModel):
+    dataset_id: str
+    left_on: list[str] = Field(min_length=1, max_length=5)
+    right_on: list[str] = Field(min_length=1, max_length=5)
+    how: Literal["left", "inner"] = "left"
+    cardinality: Literal["one_to_one", "one_to_many", "many_to_one", "many_to_many"] | None = None
+
+
+class AnalysisModelWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    base_dataset_id: str
+    joins: list[ModelJoin] = Field(default_factory=list, max_length=5)
+
+
+class AnalysisModelSummary(AnalysisModelWrite):
+    id: str
+    output_dataset_id: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class AnalysisModelRun(BaseModel):
+    id: str
+    model_id: str
+    output_dataset_id: str | None = None
+    input_versions: dict[str, str]
+    row_count: int | None = None
+    status: Literal["published", "failed"]
+    message: str | None = None
+    created_at: str
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class UserWrite(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=12, max_length=256)
+    role: Literal["admin", "analyst", "viewer"] = "viewer"
+
+
+class UserSummary(BaseModel):
+    id: str
+    email: str
+    role: Literal["admin", "analyst", "viewer"]
+    created_at: str
+
+
+class AuthStatus(BaseModel):
+    enabled: bool
+    user: UserSummary | None = None
+
+
+class DashboardShare(BaseModel):
+    token: str
+    dashboard_id: str
+    created_at: str
+    revoked_at: str | None = None

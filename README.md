@@ -15,8 +15,10 @@
 - 전체 Parquet 대상 구조화 집계·그룹·필터 API(임의 SQL 비노출)
 - KPI·막대·선·히스토그램·산점도·박스플롯·히트맵 위젯
 - 공통 필터, 드래그 정렬, 저장·재편집·복제·게시 대시보드
+- 로그인 사용자 전용 읽기 링크 생성·해제가 가능한 대시보드 공유
 - 단일 프로세스 비동기 JobRunner와 작업 상태 화면
 - 읽기 전용 SQLite 데모 DB·PostgreSQL 환경변수 Connector와 증분 동기화
+- 여러 게시 데이터셋을 조인해 재빌드하는 분석 데이터 모델
 - 활성 파이프라인 레지스트리·토글·멱등 실행 API와 Airflow 공통 DAG 연동
 - Data Dragon 아이템 파서, 기준가격·양수 Ridge·bootstrap 분석 코어
 - Data Dragon 챔피언·룬 정규화와 동일 패치 멱등 동기화
@@ -29,6 +31,7 @@
 - 웹 LoL 실험실에서 정적 동기화→계정 확인→경기 수집→마트 생성을 순서대로 실행
 - 선택형 Airflow Dynamic Task Mapping 및 Redpanda JSONL→Parquet 컴팩션 실습
 - Docker Compose 및 로컬 직접 실행
+- 선택형 로컬 계정 인증과 admin·analyst·viewer 역할 기반 API 접근 제어
 
 ## 로컬 실행
 
@@ -95,6 +98,10 @@ docker compose up --build
 
 웹은 `http://localhost:8080`, API는 `http://localhost:8000`에서 실행됩니다. `data/`는 호스트 볼륨에 유지됩니다.
 
+단일 서버 운영은 [배포 문서](docs/DEPLOYMENT.md)를 따릅니다. `docker compose up --build -d` 뒤 `python scripts/healthcheck.py`로 API와 저장소 준비 상태를 확인합니다. `.env.deploy.example`을 `.env.deploy`로 복사해 운영 변수만 주입하며, 공개 배포에는 Riot Development Key를 넣지 않습니다.
+
+배포 환경에서 `DATA_BI_AUTH_REQUIRED=true`면 첫 기동 시 `DATA_BI_ADMIN_EMAIL`과 `DATA_BI_ADMIN_PASSWORD`로 관리자 계정을 만듭니다. 조회자는 읽기만 가능하며 analyst와 admin만 데이터·대시보드 변경 작업을 할 수 있습니다. 비밀번호는 저장하지 않고 scrypt 해시만 저장합니다.
+
 Airflow는 `/api/v1/pipelines?enabled=true`에서 활성 정의만 읽으며 동일 `idempotency_key` 재실행은 기존 작업을 반환합니다. 기본 BI는 Airflow가 없어도 로컬 `JobRunner`로 동일 작업을 수행합니다.
 
 ## DB 데이터 파이프라인
@@ -111,7 +118,13 @@ SQLite demo / PostgreSQL read replica
 
 PostgreSQL 소스에는 비밀번호나 URL을 저장하지 않습니다. 연결 URL을 환경변수로 주입하고 그 **환경변수 이름**만 등록합니다. 설치 시에는 `pip install -e ".[database]"`를 추가하고, DB 계정은 대상 분석 테이블에 대한 `SELECT` 권한만 부여합니다. Airflow lab을 켜면 활성화된 소스를 매시간 증분 동기화하며, 꺼져 있으면 웹의 로컬 JobRunner가 같은 작업을 수행합니다.
 
+동기화마다 컬럼명·dtype 스키마 fingerprint를 비교합니다. 변경이 감지되면 새 Parquet 버전을 게시하지 않고 이력에 `schema_changed`로 남깁니다. DB 소스 화면에서 변경 내용을 검토한 뒤에만 **이번 동기화에서 수락**을 선택할 수 있습니다. 화면은 최근 성공·무변경·실패·스키마 변경 이력과 행/열 수, 평균 결측률도 제공합니다.
+
 FastMCP의 `list_data_sources` 도구는 데이터 소스의 마지막 동기화 상태만 읽어 오며, 동기화·자격증명 변경 권한은 노출하지 않습니다.
+
+## 분석 데이터 모델
+
+**데이터 모델** 화면에서는 기준 데이터셋과 최대 5개의 `left`/`inner` 조인 규칙을 저장합니다. 빌드는 원본을 수정하지 않고 `모델 · {이름}` 형태의 별도 게시 데이터셋을 생성합니다. 각 실행에는 입력 데이터셋 버전과 결과 행 수가 기록되며, 카디널리티 검증을 지정할 수 있고 조인 결과가 기준 행 수의 10배를 넘으면 자동 중단됩니다.
 
 Redpanda 실습은 `infra/lab/docker-compose.lab.yml`의 `stream-lab` 프로필로 별도 실행합니다. `stream/producer.py`는 스키마 버전 1 이벤트만 전송하고, `stream/consumer.py`는 1,000건 또는 10초마다 JSONL Bronze와 manifest를 원자적으로 확정한 뒤에만 offset을 커밋합니다. `stream/compact.py`는 닫힌 시간 파티션 또는 64MiB 이상 누적분을 Parquet로 컴팩션하며, 이미 manifest에 기록된 JSONL은 다시 처리하지 않습니다.
 

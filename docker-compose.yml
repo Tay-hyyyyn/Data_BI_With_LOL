@@ -3,19 +3,37 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
+    env_file:
+      - path: .env.deploy
+        required: false
     environment:
-      DATA_BI_ENV: local
+      DATA_BI_ENV: ${DATA_BI_ENV:-production}
       DATA_BI_ROOT: /workspace/data
-      DATA_BI_CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+      DATA_BI_CORS_ORIGINS: ${DATA_BI_CORS_ORIGINS:-http://localhost:8080}
     volumes:
       - ./data:/workspace/data
     ports:
       - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
-    depends_on: [backend]
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
       - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
