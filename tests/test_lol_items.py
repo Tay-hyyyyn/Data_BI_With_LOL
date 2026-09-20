@@ -2,13 +2,29 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, build_sample_coverage, estimate_gold_values, item_frame, reference_prices
+from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, build_sample_coverage, build_static_stat_value_trend, estimate_gold_values, item_frame, reference_prices
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:
     payload = {"data": {"1036": {"name": "Long Sword", "gold": {"purchasable": True, "total": 350}, "maps": {"11": True}, "stats": {"FlatPhysicalDamageMod": 10}, "description": ""}}}
     frame = item_frame(payload, "test")
     assert reference_prices(frame)["ad"] == 35.0
+
+
+def test_percentage_stats_use_percentage_point_units() -> None:
+    payload = {
+        "data": {
+            "1042": {"name": "Dagger", "gold": {"purchasable": True, "total": 250}, "maps": {"11": True}, "stats": {"PercentAttackSpeedMod": 0.10}, "description": ""},
+            "1018": {"name": "Cloak of Agility", "gold": {"purchasable": True, "total": 600}, "maps": {"11": True}, "stats": {"FlatCritChanceMod": 0.15}, "description": ""},
+        }
+    }
+
+    frame = item_frame(payload, "test")
+
+    assert frame.loc[frame["item_name"].eq("Dagger"), "attack_speed"].item() == 10
+    assert frame.loc[frame["item_name"].eq("Cloak of Agility"), "crit_chance"].item() == 15
+    assert reference_prices(frame)["attack_speed"] == 25
+    assert reference_prices(frame)["crit_chance"] == 40
 
 
 def test_context_mart_adds_inventory_and_gold_differences() -> None:
@@ -76,3 +92,19 @@ def test_gold_model_exposes_non_negative_ridge_and_nnls() -> None:
     result = estimate_gold_values(items, bootstrap=20)
     assert (result["ridge_gold_per_unit"] >= 0).all()
     assert (result["nnls_gold_per_unit"] >= 0).all()
+
+
+def test_static_stat_value_trend_keeps_one_value_per_patch_and_stat() -> None:
+    values = pd.DataFrame(
+        [
+            {"patch": "16.15.1", "stat": "ap", "ridge_gold_per_unit": 19},
+            {"patch": "16.14.1", "stat": "ap", "ridge_gold_per_unit": 18},
+            {"patch": "16.15.1", "stat": "ap", "ridge_gold_per_unit": 20},
+            {"patch": "16.15.1", "stat": "ad", "ridge_gold_per_unit": 35},
+        ]
+    )
+
+    trend = build_static_stat_value_trend(values)
+
+    assert len(trend) == 3
+    assert trend.loc[(trend["patch"] == "16.15.1") & (trend["stat"] == "ap"), "ridge_gold_per_unit"].item() == 20

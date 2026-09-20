@@ -20,6 +20,7 @@ STAT_KEYS = {
     "FlatMovementSpeedMod": "move_speed",
     "FlatMPPoolMod": "mana",
 }
+PERCENT_POINT_STATS = {"attack_speed", "crit_chance"}
 REFERENCE_ITEMS = {
     "ad": "Long Sword",
     "ap": "Amplifying Tome",
@@ -56,6 +57,11 @@ def item_frame(payload: dict[str, Any], patch: str) -> pd.DataFrame:
             "is_final_item": not bool(item.get("into")),
         }
         row.update({name: float(item.get("stats", {}).get(key, 0)) for key, name in STAT_KEYS.items()})
+        # Data Dragon encodes 10% as 0.10.  Store percentage-point units so a
+        # value of 10 consistently means 10% in reference prices, regression,
+        # dashboards, and exported BI datasets.
+        for stat in PERCENT_POINT_STATS:
+            row[stat] *= 100
         row["ability_haste"] = _ability_haste(row["description"])
         rows.append(row)
     return pd.DataFrame(rows)
@@ -184,6 +190,22 @@ def build_patch_stat_trend(context: pd.DataFrame) -> pd.DataFrame:
         if column.startswith("inventory_") and column != "inventory_cost":
             aggregations[f"average_{column}"] = (column, "mean")
     return output.groupby(["patch", "minute"], dropna=False).agg(**aggregations).reset_index()
+
+
+def build_static_stat_value_trend(stat_values: pd.DataFrame) -> pd.DataFrame:
+    """Create a chart-ready patch × stat table from static price model outputs."""
+    required = {"patch", "stat"}
+    if stat_values.empty:
+        return stat_values.copy()
+    missing = required.difference(stat_values.columns)
+    if missing:
+        raise ValueError(f"정적 스탯 가치 추세에 필요한 컬럼이 없습니다: {sorted(missing)}")
+    return (
+        stat_values.copy()
+        .drop_duplicates(["patch", "stat"], keep="last")
+        .sort_values(["stat", "patch"], kind="stable")
+        .reset_index(drop=True)
+    )
 
 
 def build_sample_coverage(context: pd.DataFrame) -> pd.DataFrame:

@@ -21,6 +21,7 @@ from ..lol.items import (
     build_observed_win_summary,
     build_patch_stat_trend,
     build_sample_coverage,
+    build_static_stat_value_trend,
     estimate_gold_values,
     item_efficiency,
     item_frame,
@@ -59,12 +60,39 @@ async def sync_lol_static(request: LolStaticSyncRequest) -> dict:
         champions = champion_frame(payload["champions"], version)
         runes = rune_frame(payload["runes"], version)
         estimates = estimate_gold_values(items, bootstrap=request.bootstrap_samples)
+        estimates["patch"] = version
         efficiency = item_efficiency(items, reference_prices(items))
         item_dataset = sync_named_dataset(efficiency, f"LoL items {version}", "riot-data-dragon")
         champion_dataset = sync_named_dataset(champions, f"LoL champions {version}", "riot-data-dragon")
         rune_dataset = sync_named_dataset(runes, f"LoL runes {version}", "riot-data-dragon")
         value_dataset = sync_named_dataset(estimates, f"LoL stat values {version}", "riot-derived-model")
-        return {"patch": version, "items": item_dataset, "champions": champion_dataset, "runes": rune_dataset, "stat_values": value_dataset}
+        latest_by_patch = {}
+        for dataset in list_datasets():
+            if dataset.source_type != "riot-derived-model" or not dataset.name.startswith("LoL stat values "):
+                continue
+            patch = dataset.name.removeprefix("LoL stat values ")
+            current = latest_by_patch.get(patch)
+            if current is None or dataset.created_at > current.created_at:
+                latest_by_patch[patch] = dataset
+        trend_frames = []
+        for patch, dataset in latest_by_patch.items():
+            frame = read_frame(dataset.id).copy()
+            if "patch" not in frame:
+                frame["patch"] = patch
+            trend_frames.append(frame)
+        trend_dataset = sync_named_dataset(
+            build_static_stat_value_trend(pd.concat(trend_frames, ignore_index=True)),
+            "LoL static stat value trend",
+            "riot-derived-model",
+        )
+        return {
+            "patch": version,
+            "items": item_dataset,
+            "champions": champion_dataset,
+            "runes": rune_dataset,
+            "stat_values": value_dataset,
+            "stat_value_trend": trend_dataset,
+        }
     except (ValueError, httpx.HTTPError) as error:
         raise HTTPException(502, str(error)) from error
 
