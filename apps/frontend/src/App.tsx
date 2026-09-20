@@ -1,18 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, BarChart3, Boxes, Database, FileUp, Gamepad2, Link2, LoaderCircle, LogOut, Search, Sigma, Sparkles, Table2 } from "lucide-react";
 import { api } from "./api";
-import { EChart } from "./EChart";
 import type { EChartsCoreOption } from "echarts/core";
 import type { AuthStatus, Dataset, Preview, Profile, Relationship, RelationshipResponse } from "./types";
-import { DashboardStudio } from "./DashboardStudio";
 import { PrepStudio } from "./PrepStudio";
-import { PipelineStudio } from "./PipelineStudio";
-import { LolStudio } from "./LolStudio";
 import { MetricStudio } from "./MetricStudio";
-import { SourceStudio } from "./SourceStudio";
-import { ModelStudio } from "./ModelStudio";
-import { LoginScreen } from "./LoginScreen";
-import { SharedDashboard } from "./SharedDashboard";
+
+const EChart = lazy(() => import("./EChart").then((module) => ({ default: module.EChart })));
+const DashboardStudio = lazy(() => import("./DashboardStudio").then((module) => ({ default: module.DashboardStudio })));
+const PipelineStudio = lazy(() => import("./PipelineStudio").then((module) => ({ default: module.PipelineStudio })));
+const LolStudio = lazy(() => import("./LolStudio").then((module) => ({ default: module.LolStudio })));
+const SourceStudio = lazy(() => import("./SourceStudio").then((module) => ({ default: module.SourceStudio })));
+const ModelStudio = lazy(() => import("./ModelStudio").then((module) => ({ default: module.ModelStudio })));
+const LoginScreen = lazy(() => import("./LoginScreen").then((module) => ({ default: module.LoginScreen })));
+const SharedDashboard = lazy(() => import("./SharedDashboard").then((module) => ({ default: module.SharedDashboard })));
+
+function LoadingPanel() {
+  return <div className="recommend-placeholder">화면 모듈을 불러오는 중입니다…</div>;
+}
 
 const number = new Intl.NumberFormat("ko-KR");
 
@@ -115,9 +120,9 @@ export default function App() {
   const viewTitle = { data: active?.name ?? "새 데이터로 분석을 시작하세요", sources: "DB 데이터 소스", models: "분석 데이터 모델", prep: "전처리 레시피", metrics: "지표 정의", dashboard: "대시보드 편집기", pipeline: "파이프라인 작업", lol: "LoL 데이터 실험실" }[view];
 
   if (auth === undefined) return <main className="login-shell"><div className="login-card">세션을 확인하고 있습니다…</div></main>;
-  if (auth === null) return <LoginScreen onLoggedIn={setAuth}/>;
+  if (auth === null) return <Suspense fallback={<LoadingPanel/>}><LoginScreen onLoggedIn={setAuth}/></Suspense>;
   const shareToken = new URLSearchParams(window.location.search).get("share");
-  if (shareToken) return <div className="shell"><main><header><div><p>분석 작업공간</p><h1>공유 대시보드</h1></div></header><SharedDashboard token={shareToken} onClose={() => { window.history.replaceState({}, "", window.location.pathname); window.location.reload(); }}/></main></div>;
+  if (shareToken) return <div className="shell"><main><header><div><p>분석 작업공간</p><h1>공유 대시보드</h1></div></header><Suspense fallback={<LoadingPanel/>}><SharedDashboard token={shareToken} onClose={() => { window.history.replaceState({}, "", window.location.pathname); window.location.reload(); }}/></Suspense></main></div>;
   async function logout() { await api.logout(); setAuth(null); setDatasets([]); setActive(null); }
   return <div className="shell">
     <aside className="sidebar">
@@ -134,7 +139,7 @@ export default function App() {
     <main>
       <header><div><p>분석 작업공간</p><h1>{viewTitle}</h1></div><div className="header-actions">{auth.enabled && <span className="status">{auth.user?.email} · {auth.user?.role}</span>}<span className="status"><i/> 로컬 전용</span><button className="primary" onClick={() => fileRef.current?.click()}><FileUp size={16}/> 업로드</button>{auth.enabled && <button onClick={() => void logout()}><LogOut size={16}/> 로그아웃</button>}</div></header>
       {error && <div className="error">{error}</div>}
-      {view === "sources" ? <SourceStudio onSynced={refresh}/> : view === "models" ? <ModelStudio datasets={datasets} onBuilt={refresh}/> : view === "prep" ? <PrepStudio dataset={active} datasets={datasets} profile={profile} onPublished={async () => { await refresh(); if (active) { const [p, rows] = await Promise.all([api.profile(active.id), api.preview(active.id)]); setProfile(p); setPreview(rows); } }}/> : view === "metrics" ? <MetricStudio dataset={active} profile={profile}/> : view === "dashboard" ? <DashboardStudio dataset={active} profile={profile} preview={preview}/> : view === "pipeline" ? <PipelineStudio dataset={active} profile={profile}/> : view === "lol" ? <LolStudio datasets={datasets} onDatasetsChanged={refresh}/> : !active ? <section className="empty"><div><FileUp size={30}/></div><h2>첫 데이터셋을 올려보세요</h2><p>CSV, Excel, Parquet 파일을 원자적 버전으로 저장하고 바로 탐색할 수 있습니다.</p><button className="primary" onClick={() => fileRef.current?.click()}>파일 선택</button></section> : <>
+      <Suspense fallback={<LoadingPanel/>}>{view === "sources" ? <SourceStudio onSynced={refresh}/> : view === "models" ? <ModelStudio datasets={datasets} onBuilt={refresh}/> : view === "prep" ? <PrepStudio dataset={active} datasets={datasets} profile={profile} onPublished={async () => { await refresh(); if (active) { const [p, rows] = await Promise.all([api.profile(active.id), api.preview(active.id)]); setProfile(p); setPreview(rows); } }}/> : view === "metrics" ? <MetricStudio dataset={active} profile={profile}/> : view === "dashboard" ? <DashboardStudio dataset={active} profile={profile} preview={preview}/> : view === "pipeline" ? <PipelineStudio dataset={active} profile={profile}/> : view === "lol" ? <LolStudio datasets={datasets} onDatasetsChanged={refresh}/> : !active ? <section className="empty"><div><FileUp size={30}/></div><h2>첫 데이터셋을 올려보세요</h2><p>CSV, Excel, Parquet 파일을 원자적 버전으로 저장하고 바로 탐색할 수 있습니다.</p><button className="primary" onClick={() => fileRef.current?.click()}>파일 선택</button></section> : <>
         <section className="kpis">
           <article><span>레코드</span><strong>{number.format(profile?.row_count ?? active.row_count ?? 0)}</strong><small><ArrowUpRight size={13}/> 게시 버전 기준</small></article>
           <article><span>컬럼</span><strong>{profile?.column_count ?? active.column_count ?? 0}</strong><small>{profile?.columns.filter((c) => c.semantic_type === "numeric").length ?? 0}개 수치형</small></article>
@@ -157,7 +162,7 @@ export default function App() {
         </section>
 
         <section className="panel table-panel"><div className="panel-head"><div><p>데이터 미리보기</p><h2>게시된 원본 데이터</h2></div><span className="method">최대 100행</span></div><div className="table-wrap"><table><thead><tr>{preview?.columns.map((col) => <th key={col}>{col}</th>)}</tr></thead><tbody>{preview?.rows.slice(0, 12).map((row, i) => <tr key={i}>{preview.columns.map((col) => <td key={col}>{String(row[col] ?? "—")}</td>)}</tr>)}</tbody></table></div></section>
-      </>}
+      </>}</Suspense>
     </main>
   </div>;
 }
