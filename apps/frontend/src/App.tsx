@@ -9,6 +9,7 @@ import { PrepStudio } from "./PrepStudio";
 import { PipelineStudio } from "./PipelineStudio";
 import { LolStudio } from "./LolStudio";
 import { MetricStudio } from "./MetricStudio";
+import { SourceStudio } from "./SourceStudio";
 
 const number = new Intl.NumberFormat("ko-KR");
 
@@ -55,7 +56,7 @@ function sampleOption(preview: Preview | null, relation: Relationship | null, se
 }
 
 export default function App() {
-  const [view, setView] = useState<"data" | "prep" | "metrics" | "dashboard" | "pipeline" | "lol">("data");
+  const [view, setView] = useState<"data" | "sources" | "prep" | "metrics" | "dashboard" | "pipeline" | "lol">("data");
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [active, setActive] = useState<Dataset | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -106,12 +107,12 @@ export default function App() {
 
   const filtered = datasets.filter((d) => d.name.toLowerCase().includes(query.toLowerCase()));
   const chartOption = useMemo(() => sampleOption(preview, selectedRelation, selectedColumn), [preview, selectedRelation, selectedColumn]);
-  const viewTitle = { data: active?.name ?? "새 데이터로 분석을 시작하세요", prep: "전처리 레시피", metrics: "지표 정의", dashboard: "대시보드 편집기", pipeline: "파이프라인 작업", lol: "LoL 데이터 실험실" }[view];
+  const viewTitle = { data: active?.name ?? "새 데이터로 분석을 시작하세요", sources: "DB 데이터 소스", prep: "전처리 레시피", metrics: "지표 정의", dashboard: "대시보드 편집기", pipeline: "파이프라인 작업", lol: "LoL 데이터 실험실" }[view];
 
   return <div className="shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><BarChart3 size={21}/></div><div><b>Data BI</b><span>WITH LoL LAB</span></div></div>
-      <nav><button className={view === "data" ? "nav-active" : ""} onClick={() => setView("data")}><Database size={17}/> 데이터 허브</button><button className={view === "prep" ? "nav-active" : ""} onClick={() => setView("prep")}><Table2 size={17}/> 전처리 레시피</button><button className={view === "metrics" ? "nav-active" : ""} onClick={() => setView("metrics")}><Sigma size={17}/> 지표 정의</button><button className={view === "dashboard" ? "nav-active" : ""} onClick={() => setView("dashboard")}><BarChart3 size={17}/> 대시보드</button><button className={view === "pipeline" ? "nav-active" : ""} onClick={() => setView("pipeline")}><Activity size={17}/> 파이프라인</button><button className={view === "lol" ? "nav-active" : ""} onClick={() => setView("lol")}><Gamepad2 size={17}/> LoL 실험실</button></nav>
+      <nav><button className={view === "data" ? "nav-active" : ""} onClick={() => setView("data")}><Database size={17}/> 데이터 허브</button><button className={view === "sources" ? "nav-active" : ""} onClick={() => setView("sources")}><Database size={17}/> DB 소스</button><button className={view === "prep" ? "nav-active" : ""} onClick={() => setView("prep")}><Table2 size={17}/> 전처리 레시피</button><button className={view === "metrics" ? "nav-active" : ""} onClick={() => setView("metrics")}><Sigma size={17}/> 지표 정의</button><button className={view === "dashboard" ? "nav-active" : ""} onClick={() => setView("dashboard")}><BarChart3 size={17}/> 대시보드</button><button className={view === "pipeline" ? "nav-active" : ""} onClick={() => setView("pipeline")}><Activity size={17}/> 파이프라인</button><button className={view === "lol" ? "nav-active" : ""} onClick={() => setView("lol")}><Gamepad2 size={17}/> LoL 실험실</button></nav>
       <div className="side-heading"><span>데이터셋</span><b>{datasets.length}</b></div>
       <div className="search"><Search size={15}/><input aria-label="데이터셋 검색" placeholder="검색" value={query} onChange={(e) => setQuery(e.target.value)}/></div>
       <div className="dataset-list">{filtered.map((dataset) => <button key={dataset.id} className={active?.id === dataset.id ? "selected" : ""} onClick={() => setActive(dataset)}><span className="dataset-icon"><Table2 size={15}/></span><span><b>{dataset.name}</b><small>{number.format(dataset.row_count ?? 0)}행 · {dataset.column_count ?? 0}열</small></span></button>)}</div>
@@ -123,7 +124,7 @@ export default function App() {
     <main>
       <header><div><p>분석 작업공간</p><h1>{viewTitle}</h1></div><div className="header-actions"><span className="status"><i/> 로컬 전용</span><button className="primary" onClick={() => fileRef.current?.click()}><FileUp size={16}/> 업로드</button></div></header>
       {error && <div className="error">{error}</div>}
-      {view === "prep" ? <PrepStudio dataset={active} datasets={datasets} profile={profile} onPublished={async () => { await refresh(); if (active) { const [p, rows] = await Promise.all([api.profile(active.id), api.preview(active.id)]); setProfile(p); setPreview(rows); } }}/> : view === "metrics" ? <MetricStudio dataset={active} profile={profile}/> : view === "dashboard" ? <DashboardStudio dataset={active} profile={profile} preview={preview}/> : view === "pipeline" ? <PipelineStudio dataset={active} profile={profile}/> : view === "lol" ? <LolStudio datasets={datasets} onDatasetsChanged={refresh}/> : !active ? <section className="empty"><div><FileUp size={30}/></div><h2>첫 데이터셋을 올려보세요</h2><p>CSV, Excel, Parquet 파일을 원자적 버전으로 저장하고 바로 탐색할 수 있습니다.</p><button className="primary" onClick={() => fileRef.current?.click()}>파일 선택</button></section> : <>
+      {view === "sources" ? <SourceStudio onSynced={refresh}/> : view === "prep" ? <PrepStudio dataset={active} datasets={datasets} profile={profile} onPublished={async () => { await refresh(); if (active) { const [p, rows] = await Promise.all([api.profile(active.id), api.preview(active.id)]); setProfile(p); setPreview(rows); } }}/> : view === "metrics" ? <MetricStudio dataset={active} profile={profile}/> : view === "dashboard" ? <DashboardStudio dataset={active} profile={profile} preview={preview}/> : view === "pipeline" ? <PipelineStudio dataset={active} profile={profile}/> : view === "lol" ? <LolStudio datasets={datasets} onDatasetsChanged={refresh}/> : !active ? <section className="empty"><div><FileUp size={30}/></div><h2>첫 데이터셋을 올려보세요</h2><p>CSV, Excel, Parquet 파일을 원자적 버전으로 저장하고 바로 탐색할 수 있습니다.</p><button className="primary" onClick={() => fileRef.current?.click()}>파일 선택</button></section> : <>
         <section className="kpis">
           <article><span>레코드</span><strong>{number.format(profile?.row_count ?? active.row_count ?? 0)}</strong><small><ArrowUpRight size={13}/> 게시 버전 기준</small></article>
           <article><span>컬럼</span><strong>{profile?.column_count ?? active.column_count ?? 0}</strong><small>{profile?.columns.filter((c) => c.semantic_type === "numeric").length ?? 0}개 수치형</small></article>

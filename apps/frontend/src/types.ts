@@ -120,6 +120,23 @@ export type Pipeline = {
   updated_at: string;
 };
 
+export type DataSource = {
+  id: string;
+  name: string;
+  source_type: "sqlite_demo" | "postgresql";
+  table_name: string;
+  primary_key: string;
+  watermark_column: string | null;
+  connection_env_var: string | null;
+  enabled: boolean;
+  dataset_id: string | null;
+  last_watermark: string | null;
+  last_synced_at: string | null;
+  last_row_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type RiotAccount = { puuid: string; game_name: string; tag_line: string };
 export type LolStaticSync = {
   patch: string;

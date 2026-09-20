@@ -16,6 +16,7 @@
 - KPI·막대·선·히스토그램·산점도·박스플롯·히트맵 위젯
 - 공통 필터, 드래그 정렬, 저장·재편집·복제·게시 대시보드
 - 단일 프로세스 비동기 JobRunner와 작업 상태 화면
+- 읽기 전용 SQLite 데모 DB·PostgreSQL 환경변수 Connector와 증분 동기화
 - 활성 파이프라인 레지스트리·토글·멱등 실행 API와 Airflow 공통 DAG 연동
 - Data Dragon 아이템 파서, 기준가격·양수 Ridge·bootstrap 분석 코어
 - Data Dragon 챔피언·룬 정규화와 동일 패치 멱등 동기화
@@ -95,6 +96,22 @@ docker compose up --build
 웹은 `http://localhost:8080`, API는 `http://localhost:8000`에서 실행됩니다. `data/`는 호스트 볼륨에 유지됩니다.
 
 Airflow는 `/api/v1/pipelines?enabled=true`에서 활성 정의만 읽으며 동일 `idempotency_key` 재실행은 기존 작업을 반환합니다. 기본 BI는 Airflow가 없어도 로컬 `JobRunner`로 동일 작업을 수행합니다.
+
+## DB 데이터 파이프라인
+
+실제 대상 DB가 없어도 웹의 **DB 소스** 화면에서 `내장 데모 DB 만들기`를 누르면, 결정론적으로 생성된 SQLite `orders` 운영 테이블을 읽기 전용으로 동기화할 수 있습니다.
+
+```text
+SQLite demo / PostgreSQL read replica
+  → 전체 또는 watermark(updated_at) 증분 읽기
+  → primary key 기준 멱등 병합
+  → 새 Parquet 버전 원자적 게시
+  → 기존 BI 지표·관계 추천·대시보드에서 조회
+```
+
+PostgreSQL 소스에는 비밀번호나 URL을 저장하지 않습니다. 연결 URL을 환경변수로 주입하고 그 **환경변수 이름**만 등록합니다. 설치 시에는 `pip install -e ".[database]"`를 추가하고, DB 계정은 대상 분석 테이블에 대한 `SELECT` 권한만 부여합니다. Airflow lab을 켜면 활성화된 소스를 매시간 증분 동기화하며, 꺼져 있으면 웹의 로컬 JobRunner가 같은 작업을 수행합니다.
+
+FastMCP의 `list_data_sources` 도구는 데이터 소스의 마지막 동기화 상태만 읽어 오며, 동기화·자격증명 변경 권한은 노출하지 않습니다.
 
 Redpanda 실습은 `infra/lab/docker-compose.lab.yml`의 `stream-lab` 프로필로 별도 실행합니다. `stream/producer.py`는 스키마 버전 1 이벤트만 전송하고, `stream/consumer.py`는 1,000건 또는 10초마다 JSONL Bronze와 manifest를 원자적으로 확정한 뒤에만 offset을 커밋합니다. `stream/compact.py`는 닫힌 시간 파티션 또는 64MiB 이상 누적분을 Parquet로 컴팩션하며, 이미 manifest에 기록된 JSONL은 다시 처리하지 않습니다.
 

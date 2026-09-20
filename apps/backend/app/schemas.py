@@ -229,3 +229,28 @@ class PipelineSummary(PipelineWrite):
 
 class PipelineRunRequest(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class DataSourceWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    source_type: Literal["sqlite_demo", "postgresql"]
+    table_name: str = Field(min_length=1, max_length=100)
+    primary_key: str = Field(min_length=1, max_length=100)
+    watermark_column: str | None = Field(None, max_length=100)
+    connection_env_var: str | None = Field(None, max_length=100)
+    enabled: bool = True
+
+
+class DataSourceSummary(DataSourceWrite):
+    id: str
+    dataset_id: str | None = None
+    last_watermark: str | None = None
+    last_synced_at: str | None = None
+    last_row_count: int = 0
+    created_at: str
+    updated_at: str
+
+
+class SourceSyncRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1, max_length=200)
+    mode: Literal["full", "incremental"] = "incremental"

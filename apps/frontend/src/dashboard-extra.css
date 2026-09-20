@@ -78,6 +78,38 @@
   color: var(--text);
 }
 
+.source-form {
+  margin: 14px 0;
+  padding: 16px;
+}
+
+.source-form h3 { margin: 0 0 12px; }
+
+.source-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.source-form-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.source-form-grid input,
+.source-form-grid select {
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+@media (max-width: 850px) { .source-form-grid { grid-template-columns: 1fr; } }
+
 .lol-safety {
   display: flex;
   align-items: center;

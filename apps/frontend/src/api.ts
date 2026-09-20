@@ -1,4 +1,4 @@
-import type { Dashboard, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Metric, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
+import type { Dashboard, DataSource, Dataset, DatasetChartResult, DatasetQueryResult, Job, LolStaticSync, Metric, Pipeline, Preview, Profile, RelationshipResponse, RiotAccount, RiotMatchCollection } from "./types";
 
 async function decode<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -48,6 +48,10 @@ export const api = {
   createPipeline: (payload: Record<string, unknown>) => fetch("/api/v1/pipelines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Pipeline>),
   togglePipeline: (id: string, enabled: boolean) => fetch(`/api/v1/pipelines/${id}/enabled?enabled=${enabled}`, { method: "POST" }).then(decode<Pipeline>),
   runPipeline: (id: string, idempotencyKey: string) => fetch(`/api/v1/pipelines/${id}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey }) }).then(decode<Job>),
+  listSources: () => fetch("/api/v1/sources").then(decode<DataSource[]>),
+  createSource: (payload: Record<string, unknown>) => fetch("/api/v1/sources", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<DataSource>),
+  toggleSource: (id: string, enabled: boolean) => fetch(`/api/v1/sources/${id}/enabled?enabled=${enabled}`, { method: "POST" }).then(decode<DataSource>),
+  syncSource: (id: string, idempotencyKey: string, mode: "full" | "incremental") => fetch(`/api/v1/sources/${id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idempotency_key: idempotencyKey, mode }) }).then(decode<Job>),
   syncLolStatic: (version?: string) => fetch("/api/v1/lol/static/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: version || null, bootstrap_samples: 200 }) }).then(decode<LolStaticSync>),
   createLolStarterDashboard: (patch: string) => fetch("/api/v1/lol/dashboards/starter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patch }) }).then(decode<Dashboard>),
   createLolPatchTrendDashboard: () => fetch("/api/v1/lol/dashboards/patch-trend", { method: "POST" }).then(decode<Dashboard>),

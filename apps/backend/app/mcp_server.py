@@ -30,6 +30,12 @@ def list_datasets() -> dict[str, Any]:
 
 
 @mcp.tool()
+def list_data_sources() -> dict[str, Any]:
+    """읽기 전용 DB 소스와 마지막 동기화·게시 상태를 반환합니다. 연결 URL이나 비밀번호는 노출하지 않습니다."""
+    return {"sources": _get("/sources")}
+
+
+@mcp.tool()
 def describe_dataset(dataset_id: str) -> dict[str, Any]:
     """데이터셋의 컬럼 유형, 결측률, 고유값 수를 반환합니다."""
     return _get(f"/datasets/{dataset_id}/profile")

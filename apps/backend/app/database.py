@@ -87,6 +87,34 @@ CREATE TABLE IF NOT EXISTS pipelines (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pipelines_enabled ON pipelines(enabled, updated_at DESC);
+CREATE TABLE IF NOT EXISTS data_sources (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    source_type TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    primary_key TEXT NOT NULL,
+    watermark_column TEXT,
+    connection_env_var TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    config_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_data_sources_enabled ON data_sources(enabled, updated_at DESC);
+CREATE TABLE IF NOT EXISTS source_sync_state (
+    source_id TEXT PRIMARY KEY REFERENCES data_sources(id) ON DELETE CASCADE,
+    dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    last_watermark TEXT,
+    last_synced_at TEXT,
+    last_row_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS source_sync_runs (
+    source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+    idempotency_key TEXT NOT NULL,
+    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(source_id, idempotency_key)
+);
 CREATE TABLE IF NOT EXISTS pipeline_runs (
     pipeline_id TEXT NOT NULL REFERENCES pipelines(id) ON DELETE CASCADE,
     idempotency_key TEXT NOT NULL,

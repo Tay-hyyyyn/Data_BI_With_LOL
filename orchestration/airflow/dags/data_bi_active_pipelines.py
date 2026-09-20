@@ -39,5 +39,25 @@ def active_pipelines():
 
     run.expand(pipeline=enabled())
 
+    @task
+    def enabled_sources() -> list[dict]:
+        response = requests.get(f"{API}/sources?enabled=true", timeout=30)
+        if response.status_code == 404:
+            return []
+        response.raise_for_status()
+        return response.json()
+
+    @task(retries=2)
+    def sync_source(source: dict) -> dict:
+        response = requests.post(
+            f"{API}/sources/{source['id']}/sync",
+            json={"idempotency_key": f"{{{{ ds_nodash }}}}-{source['id']}", "mode": "incremental"},
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    sync_source.expand(source=enabled_sources())
+
 
 active_pipelines()
