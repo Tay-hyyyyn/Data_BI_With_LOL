@@ -149,6 +149,41 @@ def create_lol_patch_trend_dashboard() -> DashboardSummary:
     return save_or_update_dashboard("LoL 패치 비교·표본 품질 대시보드", widgets)
 
 
+def _latest_patch_dataset(prefix: str):
+    candidates = [dataset for dataset in list_datasets() if dataset.name.startswith(prefix)]
+
+    def version_key(dataset) -> tuple[int, ...]:
+        try:
+            return tuple(int(part) for part in patch_key(dataset.name.removeprefix(prefix)).split("."))
+        except ValueError:
+            return (0,)
+
+    return max(candidates, key=version_key, default=None)
+
+
+@router.post("/api/v1/lol/dashboards/case-study", response_model=DashboardSummary, status_code=201)
+def create_lol_case_study_dashboard() -> DashboardSummary:
+    """Create one private, portfolio-ready dashboard from the existing LoL marts."""
+    static_values = get_dataset_by_name("LoL static stat value trend", "riot-derived-model")
+    patch_trend = get_dataset_by_name("LoL patch stat trend", "riot-derived-model")
+    coverage = get_dataset_by_name("LoL sample coverage", "riot-derived-model")
+    observations = _latest_patch_dataset("LoL gold and stat win-rate timeseries ")
+    if not all((static_values, patch_trend, coverage, observations)):
+        raise HTTPException(404, "정적 가치·패치 추세·표본 품질·관찰 승률 마트를 먼저 생성하세요.")
+    widgets = [
+        {"id": "case-static-reference", "title": "스탯별 기준 골드 가격", "type": "bar", "column": "reference_gold_per_unit", "dimension": "stat", "aggregation": "mean", "dataset_id": static_values.id},
+        {"id": "case-static-ridge", "title": "아이템 카탈로그 기반 추정 가격", "type": "bar", "column": "ridge_gold_per_unit", "dimension": "stat", "aggregation": "mean", "dataset_id": static_values.id},
+        {"id": "case-gold", "title": "패치·시점별 평균 보유 골드", "type": "line", "column": "average_total_gold", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": patch_trend.id},
+        {"id": "case-ap", "title": "패치·시점별 인벤토리 AP", "type": "line", "column": "average_inventory_ap", "dimension": "minute", "series": "patch", "aggregation": "mean", "dataset_id": patch_trend.id},
+        {"id": "case-coverage", "title": "패치·시점별 표본 경기 수", "type": "line", "column": "sample_matches", "dimension": "minute", "series": "patch", "aggregation": "sum", "dataset_id": coverage.id},
+        {"id": "case-observed-win", "title": "골드 구간별 관찰 승률 (표본 기반)", "type": "line", "column": "observed_win_rate", "dimension": "gold_bucket_start", "aggregation": "mean", "dataset_id": observations.id},
+    ]
+    return save_or_update_dashboard(
+        "LoL 통합 사례 분석 · 정적가치와 관찰경기",
+        widgets,
+    )
+
+
 @router.post("/api/v1/lol/accounts/resolve", response_model=RiotAccountSummary)
 async def resolve_riot_account(request: RiotAccountResolveRequest) -> RiotAccountSummary:
     try:

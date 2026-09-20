@@ -62,6 +62,12 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
     catch (error) { setMessage(error instanceof Error ? error.message : "비교 대시보드를 생성하지 못했습니다."); }
     finally { setBusy(""); }
   }
+  async function createCaseStudyDashboard() {
+    setBusy("case-study"); setMessage("");
+    try { const result = await api.createLolCaseStudyDashboard(); setMessage(`${result.name}를 비공개로 저장했습니다. 관찰 승률은 표본 기반으로 해석하세요.`); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "통합 사례 대시보드를 생성하지 못했습니다."); }
+    finally { setBusy(""); }
+  }
 
   return <section className="studio lol-studio">
     <div className="lol-safety"><ShieldCheck size={18}/><div><b>개발 데이터 보호 적용</b><span>원본 경기와 파생 데이터는 로컬 비공개로 유지되며 공개 게시가 차단됩니다.</span></div></div>
@@ -74,6 +80,7 @@ export function LolStudio({ datasets, onDatasetsChanged }: { datasets: Dataset[]
       <article className="panel lol-card"><div className="panel-head"><div><p>OPTIONAL</p><h2>LOL.PS 벤치마크</h2></div><FileUp size={19}/></div><label>허가받은 집계 파일<input type="file" accept=".csv,.xlsx,.xls,.parquet" onChange={(event) => setBenchmarkFile(event.target.files?.[0] ?? null)}/></label><button className="primary" disabled={!!busy || !benchmarkFile} onClick={() => void uploadBenchmark()}>{busy === "benchmark" ? "검증 중" : "집계 벤치마크 등록"}</button><small>비공개 API 호출 없이 제공받은 파일만 등록하며, 승률·픽률은 0~1로 표준화합니다.</small></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 5</p><h2>BI 시작 대시보드</h2></div><BarChart3 size={19}/></div><label>분석 패치<select value={starterPatch} onChange={(event) => setStarterPatch(event.target.value)}><option value="">패치를 선택하세요</option>{itemDatasets.map((item) => <option key={item.id} value={item.name.replace("LoL items ", "")}>{item.name.replace("LoL items ", "")}</option>)}</select></label><button className="primary" disabled={!!busy || !starterPatch} onClick={() => void createStarterDashboard()}>{busy === "dashboard" ? "생성 중" : "골드·승률 대시보드 만들기"}</button><small>선택한 패치의 골드, AP·AD·AH, 관찰 승률 위젯을 비공개로 저장합니다.</small></article>
       <article className="panel lol-card"><div className="panel-head"><div><p>STEP 6</p><h2>패치 비교 대시보드</h2></div><BarChart3 size={19}/></div><p className="lol-card-copy">분리 처리한 여러 패치의 골드·인벤토리 스탯과 표본 품질을 같은 시간축에서 비교합니다.</p><button className="primary" disabled={!!busy} onClick={() => void createPatchTrendDashboard()}>{busy === "patch-dashboard" ? "생성 중" : "패치 추세 비교 만들기"}</button><small>통합 추세와 표본 품질 마트가 있어야 하며, 비공개로 저장됩니다.</small></article>
+      <article className="panel lol-card"><div className="panel-head"><div><p>STEP 7</p><h2>통합 사례 분석</h2></div><BarChart3 size={19}/></div><p className="lol-card-copy">정적 스탯 가치, 패치별 경기 흐름, 표본 수, 골드 구간별 관찰 승률을 하나의 사례 대시보드로 구성합니다.</p><button className="primary" disabled={!!busy} onClick={() => void createCaseStudyDashboard()}>{busy === "case-study" ? "생성 중" : "통합 사례 대시보드 만들기"}</button><small>관찰 승률은 현재 확보한 경기 표본의 기술통계이며 인과효과가 아닙니다.</small></article>
     </div>
     {collection && <article className="panel match-summary"><b>수집 준비 완료</b><span>{collection.matches.length}경기 · 신규 {collection.fetched} · 캐시 {collection.cached}</span><div>{collection.matches.map((item) => <code key={item.match_id}>{item.match_id}{item.cached ? " · cached" : " · new"}</code>)}</div></article>}
   </section>;
