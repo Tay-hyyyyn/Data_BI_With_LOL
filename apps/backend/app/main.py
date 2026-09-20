@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .api.bi import router as bi_router
+from .api.datasets import router as datasets_router
 from .database import initialize_database
 from .schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, LolStarterDashboardRequest, LolStaticSyncRequest, MetricSummary, MetricWrite, PipelineRunRequest, PipelineSummary, PipelineWrite, RelationshipRequest, RelationshipResponse, RiotAccountResolveRequest, RiotAccountSummary, RiotMatchCollectRequest, RiotMatchProcessRequest, TransformRequest, TransformResult
 from .services.datasets import create_dataset_from_frame, get_dataset_by_name, get_profile, ingest_upload, list_datasets, preview, read_frame, sync_named_dataset
@@ -41,85 +42,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(bi_router)
+app.include_router(datasets_router)
 
 
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "environment": settings.environment}
-
-
-@app.get("/api/v1/datasets", response_model=list[DatasetSummary])
-def datasets() -> list[DatasetSummary]:
-    return list_datasets()
-
-
-@app.post("/api/v1/datasets/upload", response_model=DatasetSummary, status_code=201)
-async def upload_dataset(
-    file: UploadFile = File(...),
-    name: str | None = Form(None),
-    sheet_name: str | None = Form(None),
-) -> DatasetSummary:
-    payload = await file.read(settings.max_upload_bytes + 1)
-    if len(payload) > settings.max_upload_bytes:
-        raise HTTPException(413, "파일 크기 제한을 초과했습니다.")
-    try:
-        return ingest_upload(file.filename or "dataset.csv", payload, name, sheet_name)
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.get("/api/v1/datasets/{dataset_id}/profile", response_model=DatasetProfile)
-def dataset_profile(dataset_id: str) -> DatasetProfile:
-    try:
-        return get_profile(dataset_id)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-
-
-@app.get("/api/v1/datasets/{dataset_id}/preview")
-def dataset_preview(dataset_id: str, limit: int = 100) -> dict:
-    try:
-        return preview(dataset_id, limit)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-
-
-@app.post("/api/v1/datasets/{dataset_id}/query", response_model=DatasetQueryResult)
-def structured_dataset_query(dataset_id: str, request: DatasetQuery) -> DatasetQueryResult:
-    try:
-        return query_dataset(dataset_id, request)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-    except (TypeError, ValueError) as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.post("/api/v1/datasets/{dataset_id}/chart", response_model=DatasetChartResult)
-def dataset_chart(dataset_id: str, request: DatasetChartRequest) -> DatasetChartResult:
-    try:
-        return build_chart(dataset_id, request)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-    except (TypeError, ValueError) as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.post("/api/v1/datasets/{dataset_id}/relationships", response_model=RelationshipResponse)
-def relationships(dataset_id: str, request: RelationshipRequest) -> RelationshipResponse:
-    try:
-        return analyze_cached(dataset_id, request)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋 또는 컬럼을 찾을 수 없습니다.") from error
-    except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.post("/api/v1/datasets/{dataset_id}/relationships/jobs", response_model=JobSummary, status_code=202)
-def queue_relationships(dataset_id: str, request: RelationshipRequest) -> JobSummary:
-    return job_runner.submit(
-        "column_relationships",
-        lambda: analyze_cached(dataset_id, request).model_dump(mode="json"),
-    )
 
 
 @app.get("/api/v1/jobs", response_model=list[JobSummary])
@@ -177,16 +105,6 @@ def run_pipeline(pipeline_id: str, request: PipelineRunRequest) -> JobSummary:
     except KeyError as error:
         raise HTTPException(404, "파이프라인 또는 작업을 찾을 수 없습니다.") from error
     except ValueError as error:
-        raise HTTPException(422, str(error)) from error
-
-
-@app.post("/api/v1/datasets/{dataset_id}/transform", response_model=TransformResult, status_code=201)
-def transform(dataset_id: str, request: TransformRequest) -> TransformResult:
-    try:
-        return run_recipe(dataset_id, request)
-    except KeyError as error:
-        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
-    except (ValueError, TypeError) as error:
         raise HTTPException(422, str(error)) from error
 
 
@@ -376,4 +294,3 @@ async def process_lol_matches_grouped(request: RiotMatchProcessRequest) -> dict:
         raise HTTPException(404, str(error)) from error
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
-
