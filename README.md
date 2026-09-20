@@ -36,7 +36,7 @@ Python 3.12 이상에서:
 ```bash
 python -m venv .venv
 .venv/Scripts/activate
-pip install -e ".[test,mcp]"
+pip install -e ".[test]"
 uvicorn app.main:app --app-dir apps/backend --reload
 ```
 
@@ -110,6 +110,20 @@ python apps/backend/app/mcp_server.py
 `.mcp.json.example`을 `.mcp.json`으로 복사해 호환 클라이언트에 연결할 수 있습니다. 제공 도구는 `list_datasets`, `describe_dataset`, `preview_dataset`, `query_dataset`, `analyze_column_relationships`, `generate_chart_spec`, `get_job_status`이며 `query_dataset`은 선택적으로 `dimension`과 `series`를 받아 웹과 같은 다중 계열 집계를 반환합니다. 임의 SQL·파일 경로·JavaScript 실행은 노출하지 않습니다.
 
 상세 구조와 불변 조건은 [docs/architecture.md](docs/architecture.md)를 참고하세요.
+
+## API 계약과 브랜치 작업 방식
+
+FastAPI의 Pydantic 모델이 브라우저·FastMCP가 공유하는 API 계약의 기준입니다. `scripts/export_openapi.py`는 이를 `apps/frontend/openapi.json`으로 내보내고, 프론트엔드는 `openapi-typescript`로 생성한 `src/api.generated.ts` 타입을 사용합니다.
+
+```bash
+# 백엔드 스키마를 바꾼 뒤 실행
+python scripts/export_openapi.py
+cd apps/frontend
+pnpm generate:api
+pnpm check:api
+```
+
+`pnpm check:api`와 CI는 생성 파일이 커밋된 계약과 달라지면 실패합니다. 기능 작업은 `feat/*`, 수정은 `fix/*`, CI·계약·문서는 `chore/*` 브랜치에서 진행하고, CI가 통과한 PR만 `main`에 병합합니다. `main`은 항상 배포 가능한 상태로 유지합니다.
 
 ## 안전 경계
 

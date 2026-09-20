@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from typing_extensions import NotRequired, TypedDict
 
 
 class DatasetSummary(BaseModel):
@@ -158,13 +159,21 @@ class DatasetQuery(BaseModel):
     limit: int = Field(100, ge=1, le=1_000)
 
 
+class DatasetQueryRow(TypedDict):
+    """Stable response shape for aggregated BI queries without changing dict rows."""
+
+    category: NotRequired[Any | None]
+    series: NotRequired[Any | None]
+    value: float | None
+
+
 class DatasetQueryResult(BaseModel):
     dataset_id: str
     version_id: str
     dimension: str | None
     measure: str | None
     aggregation: str
-    rows: list[dict[str, Any]]
+    rows: list[DatasetQueryRow]
 
 
 class DatasetChartRequest(BaseModel):

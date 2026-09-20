@@ -1,81 +1,20 @@
-export type Dataset = {
-  id: string;
-  name: string;
-  source_type: string;
-  created_at: string;
-  current_version_id: string | null;
-  row_count: number | null;
-  column_count: number | null;
-};
+import type { components } from "./api.generated";
 
-export type ColumnProfile = {
-  name: string;
-  dtype: string;
-  semantic_type: "numeric" | "categorical" | "datetime" | "text" | "identifier";
-  null_count: number;
-  null_ratio: number;
-  unique_count: number;
-  sample_values: unknown[];
-  minimum?: number | string | null;
-  maximum?: number | string | null;
-  mean?: number | null;
-};
+type ApiSchema = components["schemas"];
 
-export type Profile = {
-  dataset_id: string;
-  version_id: string;
-  row_count: number;
-  column_count: number;
-  columns: ColumnProfile[];
-};
+// These aliases are generated from FastAPI's OpenAPI contract. UI-only models stay below.
+export type Dataset = ApiSchema["DatasetSummary"];
+export type ColumnProfile = ApiSchema["ColumnProfile"];
+export type Profile = ApiSchema["DatasetProfile"];
 
 export type Preview = { columns: string[]; rows: Record<string, unknown>[] };
 
-export type DatasetQueryResult = {
-  dataset_id: string;
-  version_id: string;
-  dimension: string | null;
-  measure: string | null;
-  aggregation: string;
-  rows: Array<{ category?: unknown; series?: unknown; value: number | null }>;
-};
+export type DatasetQueryResult = ApiSchema["DatasetQueryResult"];
+export type DatasetChartResult = ApiSchema["DatasetChartResult"];
+export type Relationship = ApiSchema["RelationshipItem"];
+export type RelationshipResponse = ApiSchema["RelationshipResponse"];
 
-export type DatasetChartResult = {
-  dataset_id: string;
-  version_id: string;
-  chart_type: string;
-  sample_size: number;
-  chart_spec: Record<string, unknown>;
-};
-
-export type Relationship = {
-  column: string;
-  relation_type: string;
-  method: string;
-  score: number;
-  direction: "positive" | "negative" | "none";
-  sample_size: number;
-  null_ratio: number;
-  reason: string;
-  chart_spec: Record<string, unknown>;
-};
-
-export type RelationshipResponse = {
-  selected_column: string;
-  compared_candidates: number;
-  sampled: boolean;
-  items: Relationship[];
-};
-
-export type Dashboard = {
-  id: string;
-  name: string;
-  widgets: Array<Record<string, unknown>>;
-  filters: Array<Record<string, unknown>>;
-  visibility: "private" | "published";
-  created_at: string;
-  updated_at: string;
-};
+export type Dashboard = ApiSchema["DashboardSummary"];
 
 export type DashboardWidget = {
   id: string;
@@ -89,38 +28,22 @@ export type DashboardWidget = {
   dataset_id?: string;
 };
 
-export type Metric = {
-  id: string;
-  name: string;
-  dataset_id: string;
-  unit?: string | null;
-  description?: string | null;
-  value: number;
-};
+export type Metric = ApiSchema["MetricSummary"];
+export type Job = ApiSchema["JobSummary"];
+export type Pipeline = ApiSchema["PipelineSummary"];
+export type RiotAccount = ApiSchema["RiotAccountSummary"];
 
-export type Job = {
-  id: string;
-  job_type: string;
-  status: "queued" | "running" | "completed" | "failed";
-  progress: number;
-  result: Record<string, unknown> | null;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type Pipeline = {
-  id: string;
-  name: string;
-  dataset_id: string;
-  pipeline_type: "relationships" | "transform";
-  config: Record<string, unknown>;
-  enabled: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type RiotAccount = { puuid: string; game_name: string; tag_line: string };
+export type DatasetQueryRequest = Partial<ApiSchema["DatasetQuery"]>;
+export type DatasetChartRequest = Partial<ApiSchema["DatasetChartRequest"]>;
+export type RelationshipRequest = Partial<Omit<ApiSchema["RelationshipRequest"], "column">>;
+export type TransformRequest = ApiSchema["TransformRequest"];
+export type MetricWrite = ApiSchema["MetricWrite"];
+export type DashboardWrite = ApiSchema["DashboardWrite"];
+export type PipelineWrite = ApiSchema["PipelineWrite"];
+export type LolStaticSyncRequest = Partial<ApiSchema["LolStaticSyncRequest"]>;
+export type RiotAccountResolveRequest = ApiSchema["RiotAccountResolveRequest"];
+export type RiotMatchCollectRequest = ApiSchema["RiotMatchCollectRequest"];
+export type RiotMatchProcessRequest = ApiSchema["RiotMatchProcessRequest"];
 export type LolStaticSync = {
   patch: string;
   items: Dataset;

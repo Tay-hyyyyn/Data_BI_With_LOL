@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart3, GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "./api";
 import { EChart } from "./EChart";
-import type { Dashboard, DashboardWidget, Dataset, Preview, Profile } from "./types";
+import type { Dashboard, DashboardWidget, Dataset, DatasetChartRequest, DatasetQueryRequest, DatasetQueryResult, Preview, Profile } from "./types";
 
 type Widget = DashboardWidget;
 
@@ -80,14 +80,13 @@ export function DashboardStudio({ dataset, profile, preview }: { dataset: Datase
 }
 
 function WidgetCard({ datasetId, widget, filter, onRemove, ...drag }: { datasetId: string; widget: Widget; filter: { column: string; value: string } | null; onRemove: () => void; draggable: boolean; onDragStart: () => void; onDragOver: (event: React.DragEvent) => void; onDrop: () => void }) {
-  const [rows, setRows] = useState<Array<{ category?: unknown; series?: unknown; value: number | null }>>([]);
+  const [rows, setRows] = useState<DatasetQueryResult["rows"]>([]);
   const [chartSpec, setChartSpec] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
-    const filters = filter ? [{ ...filter, operator: "eq" }] : [];
-    const advanced = ["histogram", "scatter", "boxplot", "heatmap"].includes(widget.type);
-    const request = advanced
+    const filters: NonNullable<DatasetQueryRequest["filters"]> = filter ? [{ ...filter, operator: "eq" }] : [];
+    const request = isAdvancedChart(widget.type)
       ? api.chartDataset(datasetId, { chart_type: widget.type, x: widget.column, y: widget.secondary || null, group: widget.dimension || null, filters })
       : api.queryDataset(datasetId, { measure: widget.column, aggregation: widget.aggregation || "sum", dimension: widget.dimension || null, series: widget.series || null, filters });
     request
@@ -103,4 +102,8 @@ function WidgetCard({ datasetId, widget, filter, onRemove, ...drag }: { datasetI
   }, [widget.type, rows]);
   const label = { sum: "전체 합계", mean: "평균", count: "행 수", min: "최솟값", max: "최댓값" }[widget.aggregation || "sum"];
   return <article className="dashboard-widget" {...drag}><div className="widget-head"><GripVertical size={17}/><b>{widget.title}</b><button aria-label={`${widget.title} 삭제`} onClick={onRemove}><Trash2 size={15}/></button></div>{error ? <div className="notice">{error}</div> : widget.type === "kpi" ? <div className="widget-kpi"><span>{label}</span><strong>{new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(total)}</strong><small>게시 버전 전체 행 기준</small></div> : <EChart option={chartSpec ?? option}/>}</article>;
+}
+
+function isAdvancedChart(type: Widget["type"]): type is NonNullable<DatasetChartRequest["chart_type"]> {
+  return ["histogram", "scatter", "boxplot", "heatmap"].includes(type);
 }

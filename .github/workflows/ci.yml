@@ -15,6 +15,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e ".[test]"
+      - run: python scripts/export_openapi.py
+      - run: git diff --exit-code -- apps/frontend/openapi.json
       - run: pytest -q
 
   frontend:
@@ -30,6 +32,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: apps/frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        working-directory: apps/frontend
+      - run: pnpm check:api
         working-directory: apps/frontend
       - run: pnpm build
         working-directory: apps/frontend
