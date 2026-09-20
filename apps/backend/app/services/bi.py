@@ -199,6 +199,33 @@ def save_or_update_dashboard(name: str, widgets: list[dict], filters: list[dict]
     return update_dashboard(row["id"], payload) if row else save_dashboard(payload)
 
 
+def create_marketing_starter_dashboard(dataset_id: str) -> DashboardSummary:
+    """Create a private, schema-checked dashboard for a campaign performance table.
+
+    This is deliberately a typed template rather than a natural-language query: a
+    user can inspect and edit every generated widget in the normal dashboard UI.
+    """
+    frame = read_frame(dataset_id)
+    required = {"date", "channel", "spend", "impressions", "clicks", "conversions", "revenue", "roas"}
+    missing = sorted(required.difference(frame.columns))
+    if missing:
+        raise ValueError(
+            "마케팅 시작 대시보드에는 다음 컬럼이 필요합니다: " + ", ".join(missing)
+        )
+    widgets = [
+        {"id": "marketing-spend", "title": "총 광고비", "type": "kpi", "column": "spend", "aggregation": "sum", "dataset_id": dataset_id},
+        {"id": "marketing-revenue", "title": "총 매출", "type": "kpi", "column": "revenue", "aggregation": "sum", "dataset_id": dataset_id},
+        {"id": "marketing-roas", "title": "평균 ROAS", "type": "kpi", "column": "roas", "aggregation": "mean", "dataset_id": dataset_id},
+        {"id": "marketing-revenue-trend", "title": "채널별 매출 추이", "type": "line", "column": "revenue", "dimension": "date", "series": "channel", "aggregation": "sum", "dataset_id": dataset_id},
+        {"id": "marketing-channel-spend", "title": "채널별 광고비", "type": "bar", "column": "spend", "dimension": "channel", "aggregation": "sum", "dataset_id": dataset_id},
+        {"id": "marketing-spend-revenue", "title": "광고비와 매출", "type": "scatter", "column": "spend", "secondary": "revenue", "dataset_id": dataset_id},
+    ]
+    return save_or_update_dashboard(
+        f"마케팅 성과 시작 대시보드 · {dataset_id[:8]}",
+        widgets,
+    )
+
+
 def list_dashboards() -> list[DashboardSummary]:
     with db() as connection:
         rows = connection.execute("SELECT * FROM dashboards ORDER BY updated_at DESC").fetchall()

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from ..schemas import DashboardSummary, DashboardWrite, MetricSummary, MetricWrite
 from ..services.bi import (
     clone_dashboard,
+    create_marketing_starter_dashboard,
     create_metric,
     get_dashboard,
     list_dashboards,
@@ -50,6 +51,14 @@ def dashboard(dashboard_id: str) -> DashboardSummary:
 @router.post("/api/v1/dashboards", response_model=DashboardSummary, status_code=201)
 def create_dashboard(payload: DashboardWrite) -> DashboardSummary:
     return save_dashboard(payload)
+
+
+@router.post("/api/v1/dashboards/starters/marketing", response_model=DashboardSummary, status_code=201)
+def create_marketing_dashboard(dataset_id: str) -> DashboardSummary:
+    try:
+        return create_marketing_starter_dashboard(dataset_id)
+    except (KeyError, ValueError) as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.put("/api/v1/dashboards/{dashboard_id}", response_model=DashboardSummary)

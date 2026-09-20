@@ -82,6 +82,8 @@ LoL 타임라인처럼 한 참가자가 여러 시점에 반복되는 데이터�
 python scripts/generate_marketing_sample.py
 ```
 
+`marketing_campaigns`처럼 `date`, `channel`, `spend`, `impressions`, `clicks`, `conversions`, `revenue`, `roas` 컬럼을 가진 데이터셋을 선택하면 대시보드 편집기에 **마케팅 시작 대시보드** 버튼이 나타납니다. 총 광고비·매출·평균 ROAS·채널별 매출 추이·채널별 광고비·광고비/매출 산점도를 비공개 대시보드로 만들며, 이후 일반 위젯처럼 편집할 수 있습니다.
+
 ## Docker
 
 ```bash

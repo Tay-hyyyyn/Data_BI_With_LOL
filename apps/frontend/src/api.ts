@@ -35,6 +35,8 @@ export const api = {
   getDashboard: (id: string) => fetch(`/api/v1/dashboards/${id}`).then(decode<Dashboard>),
   saveDashboard: (payload: Record<string, unknown>) =>
     fetch("/api/v1/dashboards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Dashboard>),
+  createMarketingStarterDashboard: (datasetId: string) =>
+    fetch(`/api/v1/dashboards/starters/marketing?dataset_id=${encodeURIComponent(datasetId)}`, { method: "POST" }).then(decode<Dashboard>),
   updateDashboard: (id: string, payload: Record<string, unknown>) =>
     fetch(`/api/v1/dashboards/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<Dashboard>),
   cloneDashboard: (id: string) => fetch(`/api/v1/dashboards/${id}/clone`, { method: "POST" }).then(decode<Dashboard>),
