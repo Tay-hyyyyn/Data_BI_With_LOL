@@ -6,13 +6,13 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-import duckdb
 import numpy as np
 import pandas as pd
 
 from ..database import db
+from ..query import materialize
 from ..schemas import ColumnProfile, DatasetProfile, DatasetSummary
-from ..storage import manifest_files, publish_dataframe, read_uploaded_file, save_raw_upload
+from ..storage import publish_dataframe, read_uploaded_file, save_raw_upload
 
 
 def utcnow() -> str:
@@ -177,14 +177,7 @@ def get_profile(dataset_id: str) -> DatasetProfile:
 
 
 def read_frame(dataset_id: str, limit: int | None = None) -> pd.DataFrame:
-    version = get_version(dataset_id)
-    files = [str(path).replace("'", "''") for path in manifest_files(version["manifest_path"])]
-    quoted = ",".join(f"'{path}'" for path in files)
-    query = f"SELECT * FROM read_parquet([{quoted}])"  # noqa: S608 - paths come from our own manifest, quotes escaped above
-    if limit is not None:
-        query += " LIMIT ?"
-    with duckdb.connect(":memory:") as connection:
-        return connection.execute(query, [limit] if limit is not None else []).fetchdf()
+    return materialize(dataset_id, limit=limit)
 
 
 def preview(dataset_id: str, limit: int = 100) -> dict:
