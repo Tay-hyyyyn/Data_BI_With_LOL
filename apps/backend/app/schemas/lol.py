@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
+
+# Riot match ids look like "KR_7123456789". The pattern also keeps them safe to use as path segments.
+MatchId = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9]{2,5}_[0-9]{1,20}$")]
 
 __all__ = [
     "LolStarterDashboardRequest",
@@ -38,6 +43,6 @@ class RiotMatchCollectRequest(BaseModel):
 
 
 class RiotMatchProcessRequest(BaseModel):
-    match_ids: list[str] = Field(min_length=1, max_length=1_000)
+    match_ids: list[MatchId] = Field(min_length=1, max_length=1_000)
     snapshot_minutes: list[int] = Field(default=[10, 15, 20], min_length=1, max_length=12)
     item_dataset_id: str | None = None

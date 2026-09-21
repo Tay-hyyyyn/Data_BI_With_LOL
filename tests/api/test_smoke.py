@@ -107,3 +107,13 @@ def test_lol_routes_reject_without_key(client, monkeypatch):
 def test_lol_process_unknown_match_is_client_error(client):
     response = client.post("/api/v1/lol/matches/process", json={"match_ids": ["KR_1"]})
     assert 400 <= response.status_code < 500
+
+
+def test_match_ids_cannot_escape_the_data_root(client, data_root):
+    """Regression: match_id was joined into a filesystem path without validation."""
+    secret = data_root.parent / "secret" / "match.json"
+    secret.parent.mkdir(exist_ok=True)
+    secret.write_text('{"info": {"gameVersion": "1.1"}}', encoding="utf-8")
+    for route in ("process", "process-grouped"):
+        response = client.post(f"/api/v1/lol/matches/{route}", json={"match_ids": ["../../secret"]})
+        assert response.status_code == 422, (route, response.text)
