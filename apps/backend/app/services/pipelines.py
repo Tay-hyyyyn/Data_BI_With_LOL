@@ -4,8 +4,12 @@ import json
 import uuid
 
 from ..database import db
-from ..schemas import PipelineSummary, PipelineWrite
+from ..errors import ConflictError
+from ..schemas import JobSummary, PipelineSummary, PipelineWrite, RelationshipRequest, TransformRequest
 from .datasets import utcnow
+from .jobs import get_job, job_runner
+from .relationships import analyze_cached
+from .transforms import run_recipe
 
 
 def _from_row(row) -> PipelineSummary:
@@ -65,3 +69,26 @@ def record_run(pipeline_id: str, idempotency_key: str, job_id: str) -> None:
             "INSERT OR IGNORE INTO pipeline_runs(pipeline_id,idempotency_key,job_id,created_at) VALUES(?,?,?,?)",
             (pipeline_id, idempotency_key, job_id, utcnow()),
         )
+
+
+def run_pipeline(pipeline_id: str, idempotency_key: str) -> JobSummary:
+    """Queue one pipeline run, returning the existing job when the idempotency key was already used."""
+    pipeline = get_pipeline(pipeline_id)
+    if not pipeline.enabled:
+        raise ConflictError("비활성 파이프라인은 실행할 수 없습니다.")
+    previous = existing_run_job(pipeline_id, idempotency_key)
+    if previous:
+        return get_job(previous)
+    if pipeline.pipeline_type == "relationships":
+        relation_request = RelationshipRequest.model_validate(pipeline.config)
+
+        def task() -> dict:
+            return analyze_cached(pipeline.dataset_id, relation_request).model_dump(mode="json")
+    else:
+        transform_request = TransformRequest.model_validate(pipeline.config)
+
+        def task() -> dict:
+            return run_recipe(pipeline.dataset_id, transform_request).model_dump(mode="json")
+    job = job_runner.submit(f"pipeline:{pipeline.pipeline_type}", task)
+    record_run(pipeline_id, idempotency_key, job.id)
+    return job

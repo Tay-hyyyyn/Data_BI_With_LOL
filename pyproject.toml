@@ -56,7 +56,6 @@ extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fast
 "apps/backend/app/lol/timeline.py" = ["E701", "B905"]
 "apps/backend/app/lol/items.py" = ["RUF005"]
 "apps/backend/app/services/bi/query.py" = ["RUF001"]  # intentional en dash in histogram labels
-"apps/backend/app/main.py" = ["E731"]
 "tests/*" = ["B017"]
 
 [tool.mypy]

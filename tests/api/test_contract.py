@@ -10,18 +10,21 @@ from app.main import app
 SNAPSHOT = Path(__file__).with_name("openapi.snapshot.json")
 
 
+_FRAMEWORK_ROUTES = {"/docs", "/docs/oauth2-redirect", "/openapi.json", "/redoc"}
+
+
 def _routes() -> list[list[str]]:
+    """(path, method) pairs from the OpenAPI schema; `app.routes` is nested in newer FastAPI versions."""
     return sorted(
-        [route.path, method]
-        for route in app.routes
-        if hasattr(route, "methods")
-        for method in route.methods
-        if method not in {"HEAD", "OPTIONS"}
+        [path, method.upper()]
+        for path, operations in app.openapi()["paths"].items()
+        for method in operations
     )
 
 
 def test_route_set_is_stable():
-    expected = json.loads(SNAPSHOT.with_name("routes.snapshot.json").read_text("utf-8"))
+    captured = json.loads(SNAPSHOT.with_name("routes.snapshot.json").read_text("utf-8"))
+    expected = [entry for entry in captured if entry[0] not in _FRAMEWORK_ROUTES]
     assert _routes() == expected
 
 

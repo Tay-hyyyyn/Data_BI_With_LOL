@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps" / "backend"))
 
 # `settings` is imported by value into these modules, so every one must be patched together.
-SETTINGS_HOLDERS = ("app.database", "app.storage", "app.services.bi.dashboards", "app.lol.client", "app.main")
+SETTINGS_HOLDERS = ("app.database", "app.storage", "app.services.bi.dashboards", "app.lol.client", "app.services.lol")
 
 
 @pytest.fixture
