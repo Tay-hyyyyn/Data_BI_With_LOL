@@ -1,10 +1,22 @@
 import { useEffect, useRef } from "react";
 import { init, use, type EChartsCoreOption } from "echarts/core";
-import { BarChart, HeatmapChart, LineChart, ScatterChart } from "echarts/charts";
-import { DataZoomComponent, GridComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
+import { BarChart, BoxplotChart, HeatmapChart, LineChart, ScatterChart } from "echarts/charts";
+import { DataZoomComponent, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 
-use([BarChart, HeatmapChart, LineChart, ScatterChart, DataZoomComponent, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer]);
+use([
+  BarChart,
+  BoxplotChart,
+  HeatmapChart,
+  LineChart,
+  ScatterChart,
+  DataZoomComponent,
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+  VisualMapComponent,
+  CanvasRenderer,
+]);
 
 export function EChart({ option }: { option: EChartsCoreOption }) {
   const ref = useRef<HTMLDivElement>(null);
