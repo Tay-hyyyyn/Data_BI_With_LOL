@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 from fastmcp import FastMCP
 
-
 mcp = FastMCP("Data-BI-With-LoL")
 BASE_URL = os.getenv("DATA_BI_API_URL", "http://127.0.0.1:8000/api/v1")
 

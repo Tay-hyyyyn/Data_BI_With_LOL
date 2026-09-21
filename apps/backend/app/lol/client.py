@@ -20,7 +20,7 @@ class RiotKeyError(RuntimeError):
 class RiotClient:
     def __init__(self, api_key: str | None = None, key_kind: str | None = None) -> None:
         self.api_key = api_key or os.getenv("RIOT_API_KEY")
-        self.key_kind = (key_kind or os.getenv("RIOT_API_KEY_KIND", "development")).lower()
+        self.key_kind = (key_kind or os.getenv("RIOT_API_KEY_KIND") or "development").lower()
         if settings.environment == "production" and self.key_kind != "production":
             raise RiotKeyError("공개 production 환경에서는 Development API Key를 사용할 수 없습니다.")
         if not self.api_key:
@@ -39,7 +39,7 @@ class RiotClient:
             self._last_request_at = asyncio.get_running_loop().time()
 
     async def get_json(self, url: str, attempts: int = 6) -> Any:
-        async with httpx.AsyncClient(headers={"X-Riot-Token": self.api_key}, timeout=30) as client:
+        async with httpx.AsyncClient(headers={"X-Riot-Token": self.api_key or ""}, timeout=30) as client:
             for attempt in range(attempts):
                 await self._throttle()
                 response = await client.get(url)

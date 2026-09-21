@@ -4,7 +4,6 @@ import importlib.util
 import sqlite3
 from pathlib import Path
 
-
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 
 

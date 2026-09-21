@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from app.schemas import RelationshipRequest
 from app.services import relationships
 from app.services.relationships import _cramers_v, _eta_squared

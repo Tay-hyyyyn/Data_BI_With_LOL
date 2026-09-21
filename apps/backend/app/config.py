@@ -6,7 +6,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
@@ -20,7 +19,7 @@ class Settings:
     riot_enable_public_data: bool
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         raw_root = Path(os.getenv("DATA_BI_ROOT", PROJECT_ROOT / "data"))
         root = raw_root if raw_root.is_absolute() else PROJECT_ROOT / raw_root
         origins = tuple(

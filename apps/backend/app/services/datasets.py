@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -180,7 +180,7 @@ def read_frame(dataset_id: str, limit: int | None = None) -> pd.DataFrame:
     version = get_version(dataset_id)
     files = [str(path).replace("'", "''") for path in manifest_files(version["manifest_path"])]
     quoted = ",".join(f"'{path}'" for path in files)
-    query = f"SELECT * FROM read_parquet([{quoted}])"
+    query = f"SELECT * FROM read_parquet([{quoted}])"  # noqa: S608 - paths come from our own manifest, quotes escaped above
     if limit is not None:
         query += " LIMIT ?"
     with duckdb.connect(":memory:") as connection:

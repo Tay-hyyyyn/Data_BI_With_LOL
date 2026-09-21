@@ -13,7 +13,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 VERIFY_PATH = Path(__file__).with_name("verify_backup.py")
 

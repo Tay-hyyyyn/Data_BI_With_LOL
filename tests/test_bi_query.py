@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-
 from app.schemas import DatasetChartRequest, DatasetQuery, QueryFilter
 from app.services import bi
 

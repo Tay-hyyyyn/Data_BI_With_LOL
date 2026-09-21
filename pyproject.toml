@@ -29,8 +29,41 @@ include = ["app*"]
 
 [project.optional-dependencies]
 stream = ["kafka-python-ng>=2.2,<3"]
-test = ["pytest>=8,<9", "pytest-asyncio>=0.25,<1"]
+test = ["pytest>=8,<9", "pytest-asyncio>=0.25,<1", "pytest-cov>=6,<7"]
+dev = ["ruff>=0.8", "mypy>=1.14"]
 
 [tool.pytest.ini_options]
 pythonpath = ["apps/backend"]
 testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+extend-exclude = ["apps/frontend", ".venv", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "ASYNC", "S608"]
+# E501: the codebase is deliberately dense; reflowing thousands of lines is not the goal.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's File(...)/Form(...)/Query(...) defaults are idiomatic, not bugs.
+extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Depends"]
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy dense style. Delete each entry when the owning workstream rewrites the file.
+"apps/backend/app/services/transforms.py" = ["E701", "E702"]
+"apps/backend/app/lol/timeline.py" = ["E701", "B905"]
+"apps/backend/app/lol/items.py" = ["RUF005"]
+"apps/backend/app/services/bi.py" = ["RUF001"]
+"apps/backend/app/main.py" = ["E731"]
+"tests/*" = ["B017"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["apps/backend/app"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = false
+plugins = ["pydantic.mypy"]

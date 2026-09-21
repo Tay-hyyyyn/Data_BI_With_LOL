@@ -7,7 +7,6 @@ from pathlib import Path
 
 import duckdb
 
-
 STREAM = Path(__file__).resolve().parents[1] / "stream"
 
 

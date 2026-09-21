@@ -35,7 +35,8 @@ def normalize_match(match: dict, timeline: dict, snapshot_minutes: list[int]) ->
         })
 
     frames = timeline.get("info", {}).get("frames", [])
-    item_events, inventory = [], {pid: [] for pid in participants}
+    item_events: list[dict] = []
+    inventory: dict[int, list[int]] = {pid: [] for pid in participants}
     all_events = sorted((event for frame in frames for event in frame.get("events", [])), key=lambda event: event.get("timestamp", 0))
     for event in all_events:
         kind, pid = event.get("type"), event.get("participantId")
@@ -83,11 +84,11 @@ def normalize_match(match: dict, timeline: dict, snapshot_minutes: list[int]) ->
 
 
 def normalize_persisted(root: Path, match_ids: list[str], snapshot_minutes: list[int]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    outputs = [[], [], []]
+    outputs: list[list[pd.DataFrame]] = [[], [], []]
     for match_id in match_ids:
         directory = root / "bronze" / "riot" / "matches" / match_id
         if not (directory / "match.json").is_file() or not (directory / "timeline.json").is_file():
             raise FileNotFoundError(f"수집되지 않은 match_id: {match_id}")
         frames = normalize_match(json.loads((directory / "match.json").read_text("utf-8")), json.loads((directory / "timeline.json").read_text("utf-8")), snapshot_minutes)
         for bucket, frame in zip(outputs, frames): bucket.append(frame)
-    return tuple(pd.concat(bucket, ignore_index=True) if bucket else pd.DataFrame() for bucket in outputs)  # type: ignore[return-value]
+    return tuple(pd.concat(bucket, ignore_index=True) if bucket else pd.DataFrame() for bucket in outputs)

@@ -3,7 +3,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pandas as pd
-
 from app import database
 from app.schemas import MetricWrite
 from app.services import bi

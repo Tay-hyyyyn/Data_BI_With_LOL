@@ -36,7 +36,7 @@ Python 3.12 이상에서:
 ```bash
 python -m venv .venv
 .venv/Scripts/activate
-pip install -e ".[test,mcp]"
+pip install -e ".[test,dev]"
 uvicorn app.main:app --app-dir apps/backend --reload
 ```
 

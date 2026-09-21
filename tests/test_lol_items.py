@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 import pandas as pd
-
-from app.lol.items import build_context_mart, build_gold_win_timeseries, build_item_event_mart, build_observed_win_summary, build_patch_stat_trend, build_sample_coverage, estimate_gold_values, item_frame, reference_prices
+from app.lol.items import (
+    build_context_mart,
+    build_gold_win_timeseries,
+    build_item_event_mart,
+    build_observed_win_summary,
+    build_patch_stat_trend,
+    build_sample_coverage,
+    estimate_gold_values,
+    item_frame,
+    reference_prices,
+)
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:

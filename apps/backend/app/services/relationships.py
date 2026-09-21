@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-import math
 import hashlib
 import json
+import math
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
-from ..schemas import RelationshipItem, RelationshipRequest, RelationshipResponse
 from ..database import db
+from ..schemas import RelationshipItem, RelationshipRequest, RelationshipResponse
 from .datasets import get_profile, get_version, read_frame
 
 
-def _direction(score: float, signed: bool = True) -> str:
+def _direction(score: float, signed: bool = True) -> Literal["positive", "negative", "none"]:
     if not signed or abs(score) < 1e-12:
         return "none"
     return "positive" if score > 0 else "negative"

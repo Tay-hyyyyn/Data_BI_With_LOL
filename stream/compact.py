@@ -30,7 +30,7 @@ def compact(source: Path, destination: Path, minimum_bytes: int = 64 * 1024 * 10
     paths = ",".join("'" + str(path).replace("'", "''") + "'" for path in files)
     with duckdb.connect(":memory:") as connection:
         connection.execute(
-            f"COPY (SELECT * EXCLUDE (rn) FROM (SELECT *, row_number() OVER (PARTITION BY event_id ORDER BY event_time DESC) rn FROM read_json_auto([{paths}])) WHERE rn=1) TO '{str(temporary).replace("'", "''")}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"
+            f"COPY (SELECT * EXCLUDE (rn) FROM (SELECT *, row_number() OVER (PARTITION BY event_id ORDER BY event_time DESC) rn FROM read_json_auto([{paths}])) WHERE rn=1) TO '{str(temporary).replace("'", "''")}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)"  # noqa: S608 - paths are quote-escaped above
         )
     os.replace(temporary, output)
     manifest = output.with_suffix(".manifest.json")

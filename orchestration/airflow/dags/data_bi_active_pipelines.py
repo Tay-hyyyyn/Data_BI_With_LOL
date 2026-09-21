@@ -6,7 +6,6 @@ from datetime import datetime
 import requests
 from airflow.decorators import dag, task
 
-
 API = os.getenv("DATA_BI_API_URL", "http://host.docker.internal:8000/api/v1")
 
 

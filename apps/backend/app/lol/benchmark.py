@@ -6,7 +6,6 @@ import pandas as pd
 
 from ..storage import read_uploaded_file, save_raw_upload
 
-
 ALIASES = {
     "version": "patch",
     "patch_version": "patch",

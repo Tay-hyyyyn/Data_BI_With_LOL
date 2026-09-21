@@ -4,7 +4,6 @@ import json
 from types import SimpleNamespace
 
 import pandas as pd
-
 from app import storage
 
 

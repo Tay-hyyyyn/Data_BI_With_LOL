@@ -6,9 +6,18 @@ import uuid
 import numpy as np
 import pandas as pd
 
-from ..database import db
 from ..config import settings
-from ..schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetQuery, DatasetQueryResult, MetricSummary, MetricWrite
+from ..database import db
+from ..schemas import (
+    DashboardSummary,
+    DashboardWrite,
+    DatasetChartRequest,
+    DatasetChartResult,
+    DatasetQuery,
+    DatasetQueryResult,
+    MetricSummary,
+    MetricWrite,
+)
 from .datasets import get_version, read_frame, utcnow
 
 
@@ -242,7 +251,7 @@ def set_dashboard_published(dashboard_id: str, published: bool) -> DashboardSumm
             placeholders = ",".join("?" for _ in dataset_ids)
             with db() as connection:
                 sources = connection.execute(
-                    f"SELECT name, source_type FROM datasets WHERE id IN ({placeholders})", tuple(dataset_ids)
+                    f"SELECT name, source_type FROM datasets WHERE id IN ({placeholders})", tuple(dataset_ids)  # noqa: S608 - placeholders are generated "?" only
                 ).fetchall()
             contains_restricted_lol = any(
                 row["source_type"].startswith(("riot-", "lolps-"))
