@@ -9,7 +9,7 @@ import pandas as pd
 
 from ..database import db
 from ..config import settings
-from ..schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetQuery, DatasetQueryResult, MetricSummary, MetricWrite
+from ..schemas import DashboardSummary, DashboardWrite, DatasetChartRequest, DatasetChartResult, DatasetDistinctValues, DatasetQuery, DatasetQueryResult, MetricSummary, MetricWrite
 from .datasets import get_version, read_frame, utcnow
 
 
@@ -30,6 +30,21 @@ def _apply_filters(frame, filters):
             mask = {"gt": numeric > target, "gte": numeric >= target, "lt": numeric < target, "lte": numeric <= target}[item.operator]
         filtered = filtered.loc[mask]
     return filtered
+
+
+def distinct_values(dataset_id: str, column: str, limit: int = 100) -> DatasetDistinctValues:
+    """Return filter choices from the complete published dataset, not its UI preview."""
+    version = get_version(dataset_id)
+    frame = read_frame(dataset_id)
+    if column not in frame.columns:
+        raise ValueError(f"존재하지 않는 컬럼: {column}")
+    counts = frame[column].fillna("(결측)").astype(str).value_counts(dropna=False).head(limit)
+    return DatasetDistinctValues(
+        dataset_id=dataset_id,
+        version_id=version["id"],
+        column=column,
+        values=[{"value": value, "count": int(count)} for value, count in counts.items()],
+    )
 
 
 def query_dataset(dataset_id: str, request: DatasetQuery) -> DatasetQueryResult:

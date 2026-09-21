@@ -15,6 +15,7 @@ export const api = {
   listDatasets: () => fetch("/api/v1/datasets").then(decode<Dataset[]>),
   profile: (id: string) => fetch(`/api/v1/datasets/${id}/profile`).then(decode<Profile>),
   preview: (id: string) => fetch(`/api/v1/datasets/${id}/preview?limit=100`).then(decode<Preview>),
+  distinctValues: (id: string, column: string) => fetch(`/api/v1/datasets/${id}/columns/${encodeURIComponent(column)}/values?limit=100`).then(decode<{ values: Array<{ value: string; count: number }> }>),
   queryDataset: (id: string, payload: Record<string, unknown>) =>
     fetch(`/api/v1/datasets/${id}/query`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(decode<DatasetQueryResult>),
   chartDataset: (id: string, payload: Record<string, unknown>) =>

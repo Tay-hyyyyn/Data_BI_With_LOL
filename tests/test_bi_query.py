@@ -40,6 +40,17 @@ def test_structured_query_rejects_unknown_columns(monkeypatch) -> None:
         bi.query_dataset("dataset-1", DatasetQuery(measure="revenue"))
 
 
+def test_distinct_values_uses_complete_published_frame(monkeypatch) -> None:
+    frame = pd.DataFrame({"channel": ["search", "social", "search", None]})
+    monkeypatch.setattr(bi, "get_version", lambda _: {"id": "version-1"})
+    monkeypatch.setattr(bi, "read_frame", lambda _: frame)
+
+    result = bi.distinct_values("dataset-1", "channel")
+
+    assert result.version_id == "version-1"
+    assert result.values == [{"value": "search", "count": 2}, {"value": "social", "count": 1}, {"value": "(결측)", "count": 1}]
+
+
 def test_chart_builder_returns_deterministic_scatter_sample(monkeypatch) -> None:
     frame = pd.DataFrame({"x": range(500), "y": range(500)})
     monkeypatch.setattr(bi, "get_version", lambda _: {"id": "version-1"})

@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from ..config import settings
-from ..schemas import DatasetChartRequest, DatasetChartResult, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, RelationshipRequest, RelationshipResponse, TransformRequest, TransformResult
-from ..services.bi import build_chart, query_dataset
+from ..schemas import DatasetChartRequest, DatasetChartResult, DatasetDistinctValues, DatasetProfile, DatasetQuery, DatasetQueryResult, DatasetSummary, JobSummary, RelationshipRequest, RelationshipResponse, TransformRequest, TransformResult
+from ..services.bi import build_chart, distinct_values, query_dataset
 from ..services.datasets import get_profile, ingest_upload, list_datasets, preview
 from ..services.jobs import job_runner
 from ..services.relationships import analyze_cached
@@ -44,6 +44,16 @@ def dataset_preview(dataset_id: str, limit: int = 100) -> dict:
         return preview(dataset_id, limit)
     except KeyError as error:
         raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
+
+
+@router.get("/api/v1/datasets/{dataset_id}/columns/{column}/values", response_model=DatasetDistinctValues)
+def dataset_distinct_values(dataset_id: str, column: str, limit: int = 100) -> DatasetDistinctValues:
+    try:
+        return distinct_values(dataset_id, column, min(max(limit, 1), 500))
+    except KeyError as error:
+        raise HTTPException(404, "데이터셋을 찾을 수 없습니다.") from error
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
 
 
 @router.post("/api/v1/datasets/{dataset_id}/query", response_model=DatasetQueryResult)

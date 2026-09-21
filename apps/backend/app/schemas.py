@@ -167,6 +167,13 @@ class DatasetQueryResult(BaseModel):
     rows: list[dict[str, Any]]
 
 
+class DatasetDistinctValues(BaseModel):
+    dataset_id: str
+    version_id: str
+    column: str
+    values: list[dict[str, Any]]
+
+
 class DatasetChartRequest(BaseModel):
     chart_type: Literal["histogram", "scatter", "boxplot", "heatmap"]
     x: str
