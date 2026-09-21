@@ -53,7 +53,6 @@ extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fast
 
 [tool.ruff.lint.per-file-ignores]
 # Legacy dense style. Delete each entry when the owning workstream rewrites the file.
-"apps/backend/app/services/transforms.py" = ["E701", "E702"]
 "apps/backend/app/lol/timeline.py" = ["E701", "B905"]
 "apps/backend/app/lol/items.py" = ["RUF005"]
 "apps/backend/app/services/bi/query.py" = ["RUF001"]  # intentional en dash in histogram labels
