@@ -18,8 +18,8 @@ API 스키마를 **의도적으로** 바꿀 때는 스냅샷을 재생성하되,
 # app/query  (소유: 쿼리 엔진 스트림)
 materialize(dataset_id: str, columns: Sequence[str] | None = None, limit: int | None = None) -> pd.DataFrame
 schema_of(dataset_id: str) -> dict[str, str]          # 컬럼 -> DuckDB 타입
-run(dataset_id, plan: QueryPlan) -> pd.DataFrame       # 아직 NotImplementedError
-scalar(dataset_id, plan: QueryPlan) -> float | None    # 아직 NotImplementedError
+run(dataset_id, plan: QueryPlan) -> pd.DataFrame       # 잘못된 플랜/SQL 오류는 ValueError
+scalar(dataset_id, plan: QueryPlan) -> float | None    # NULL/NaN이면 None
 
 # app/services/datasets.py  (소유: 스토리지 스트림)
 read_frame(dataset_id: str, limit: int | None = None) -> pd.DataFrame   # materialize에 위임

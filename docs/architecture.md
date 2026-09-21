@@ -11,7 +11,7 @@ flowchart LR
   API --> META[SQLite WAL metadata]
   PUB --> DDB[In-memory DuckDB]
   DDB -->|"materialize (SELECT *)"| REL[Relationship Analyzer]
-  DDB -->|"materialize (SELECT *)"| QUERY[Structured aggregate / group / filter, pandas]
+  DDB -->|"QueryPlan -> SQL pushdown"| QUERY[Structured aggregate / group / filter]
   API --> JOB[Single-process JobRunner]
   JOB --> REL
   REL --> WEB[React + ECharts]
@@ -33,13 +33,11 @@ flowchart LR
 
 ## 현재 구현과 목표의 차이
 
-위 다이어그램은 데이터 흐름의 **목표**가 아니라 **현재 코드**를 그린 것이다. 아직 일치하지 않는 부분:
+BI 집계·차트·지표는 DuckDB로 푸시다운된다(2M행 기준 82ms, 이전 방식 1.66s). 아직 남은 차이:
 
 | 항목 | 현재 | 목표 |
 |---|---|---|
-| 집계·필터·그룹 | `query.materialize`로 전체 Parquet를 pandas DataFrame에 올린 뒤 pandas로 처리 (`services/bi/query.py`) | `QueryPlan`을 DuckDB SQL로 컴파일해 푸시다운 (`app/query/`) |
-| 불변조건 5 | 컴팩션의 `event_id` 중복 제거가 **단일 실행 내부에서만** 동작 | 실행 간 중복 제거 |
-| 파이프라인 멱등성 | 확인→제출→기록이 서로 다른 트랜잭션 | 제출 전 단일 트랜잭션 예약 |
+| 관계 분석·전처리·LoL 마트 | `query.materialize`로 전체를 pandas에 올려 처리 (정당한 pandas 작업이지만 큰 데이터에서는 메모리 부담) | 필요한 컬럼만 `columns=`로 투영 |
 
 각 항목은 `docs/parallel-plan.md`의 담당 스트림이 해결하며, 해결되면 이 표에서 삭제한다.
 

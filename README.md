@@ -29,6 +29,8 @@
 - 선택형 Airflow Dynamic Task Mapping 및 Redpanda JSONL→Parquet 컴팩션 실습
 - Docker Compose 및 로컬 직접 실행
 
+> **처음 실행해보는 경우 [사용 가이드](docs/user-guide.md)를 먼저 보세요.** 설치·실행·첫 데이터 올리기·화면별 안내·문제 해결이 정리되어 있습니다.
+
 ## 로컬 실행
 
 Python 3.12 이상에서:

@@ -20,7 +20,7 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
 
 ## 스트림
 
-### WS-1 · 쿼리 엔진 & BI 푸시다운 (L)
+### WS-1 · 쿼리 엔진 & BI 푸시다운 (L) — ✅ 완료
 - **소유**: `app/query/**`, `app/services/bi/query.py`, `app/services/bi/metrics.py`, `app/api/query.py`, `app/api/metrics.py`, `tests/query/**`
 - **하지 말 것**: `services/datasets.py`, `storage.py`, `services/bi/dashboards.py`, `services/transforms/`, `lol/`, 프론트
 - **할 일**
@@ -28,7 +28,7 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
   - `query_dataset`/`build_chart`/`_metric_value`를 플랜 기반으로 교체 (히스토그램·박스플롯 분위수·히트맵·표본추출)
   - `list_metrics`의 지표별 전체 스캔 제거
   - **B5**: `astype(str)` 필터 → 타입 강제변환 (널 있는 정수 컬럼의 `"1"` vs `"1.0"`)
-- **계약**: `materialize` 시그니처 불변, `DatasetQueryResult`/`DatasetChartResult` 동결, `tests/test_bi_query.py`의 정렬 의미론 유지
+- **계약**: `materialize` 시그니처 불변, `DatasetQueryResult`/`DatasetChartResult` 동결, `tests/query/test_bi.py`의 정렬 의미론 유지
 
 ### WS-2 · 스토리지·버전·전처리 무결성 (M)
 - **소유**: `app/storage.py`, `app/services/datasets.py`, `app/services/transforms/**`, `app/api/datasets.py`, `app/api/transforms.py`, `scripts/{backup,restore,verify}_*.py`
@@ -40,7 +40,7 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
   - `DatasetSummary`에 `version_number` 추가 (프론트 KPI 하드코딩 B10의 선행 조건)
 - **계약**: `get_version()` 최소 키 유지
 
-### WS-3 · 잡·파이프라인·스트림·운영 (M)
+### WS-3 · 잡·파이프라인·스트림·운영 (M) — ✅ 대부분 완료 (남음: `event_schema.json` 결정, 컨테이너 비root)
 - **소유**: `app/services/{jobs,pipelines}.py`, `app/api/{jobs,pipelines}.py`, `orchestration/**`, `stream/**`, `docker-compose.yml`, `infra/**`, `apps/*/Dockerfile`, `Makefile`
 - **할 일**
   - **B1**: Airflow 멱등키 — f-string이 아니라 태스크 파라미터로 (`{{ data_interval_start }}`, 시간 단위)
@@ -61,9 +61,8 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
   - 수집기: `queue=420` 필터, `start` 페이징, `RiotClient` 싱글턴, 리전 파라미터화
 - **계약**: `lol/`은 FastAPI·SQLite import 금지, 마트는 `pd.DataFrame` 반환, 데이터셋 이름 동결
 
-### WS-5 · 프론트 플랫폼 / WS-6 · 프론트 스튜디오 (Node 필요)
-`apps/frontend`는 이번 Phase 0에서 **구조 이동을 하지 않았다** (개발 PC에 Node/pnpm이 없어 빌드 검증 불가).
-Node 22 + pnpm 11.19를 설치한 뒤 `docs/frontend-plan.md`의 순서로 진행한다.
+### WS-5 · 프론트 플랫폼 / WS-6 · 프론트 스튜디오
+`apps/frontend` 구조 이동은 아직 하지 않았다. Node 22/pnpm 11.19는 설치되었고 `pnpm build`가 통과한다. `docs/frontend-plan.md`의 순서로 진행한다.
 
 ## 권장 웨이브
 
@@ -71,4 +70,4 @@ Node 22 + pnpm 11.19를 설치한 뒤 `docs/frontend-plan.md`의 순서로 진�
 
 1. WS-1 + WS-3
 2. WS-2 + WS-4 (WS-4는 Data Dragon 다중 패치 수집이 키 없이 가능하므로 먼저 시작해도 됨)
-3. 프론트 (Node 설치 후)
+3. 프론트

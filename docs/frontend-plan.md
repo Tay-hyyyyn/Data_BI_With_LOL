@@ -1,14 +1,14 @@
 # 프론트엔드 작업 계획
 
-Phase 0에서 프론트는 손대지 않았다. Node/pnpm이 없으면 `tsc`와 `vite build`로 검증할 수 없기 때문이다.
-선행 조건: **Node 22, pnpm 11.19.0** (CI와 동일 버전).
+Phase 0에서는 프론트 구조 이동을 하지 않았고, B2·B9만 고쳤다.
+환경: **Node 22, pnpm 11.19.0** 설치 완료, `pnpm build` 통과.
 
 ## 확인된 문제 (검증 완료된 것만)
 
 | ID | 위치 | 내용 | 상태 |
 |---|---|---|---|
-| B2 | `src/EChart.tsx:7` | `use([...])`에 `BoxplotChart`, `LegendComponent` 누락 → 박스플롯 미렌더링, 다계열 범례 없음 | **수정함 (빌드 미검증)** |
-| B9 | `src/dashboard-extra.css` | `--line --panel --surface --text --muted`가 정의된 곳 없음 | **수정함 (육안 미검증)** |
+| B2 | `src/EChart.tsx:7` | `use([...])`에 `BoxplotChart`, `LegendComponent` 누락 → 박스플롯 미렌더링, 다계열 범례 없음 | **수정·검증 완료** (빌드 통과, 박스플롯 렌더링 확인) |
+| B9 | `src/dashboard-extra.css` | `--line --panel --surface --text --muted`가 정의된 곳 없음 | **수정 완료** (빌드 통과) |
 | B10 | `src/App.tsx:131` | "현재 버전" KPI가 `v1` 하드코딩 | 백엔드 `version_number` 필드 필요 (WS-2) |
 | — | `src/types.ts` | 수기 작성, 이미 백엔드와 드리프트 (`RelationshipResponse`에 `dataset_id`/`version_id` 없음) | 미착수 |
 | — | 전 Studio | 동일한 try/catch/setMessage 블록 12회 복붙, 알림 채널 6개 | 미착수 |
