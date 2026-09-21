@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import uuid
 
 from ..database import db
@@ -63,14 +64,6 @@ def existing_run_job(pipeline_id: str, idempotency_key: str) -> str | None:
     return row["job_id"] if row else None
 
 
-def record_run(pipeline_id: str, idempotency_key: str, job_id: str) -> None:
-    with db() as connection:
-        connection.execute(
-            "INSERT OR IGNORE INTO pipeline_runs(pipeline_id,idempotency_key,job_id,created_at) VALUES(?,?,?,?)",
-            (pipeline_id, idempotency_key, job_id, utcnow()),
-        )
-
-
 def run_pipeline(pipeline_id: str, idempotency_key: str) -> JobSummary:
     """Queue one pipeline run, returning the existing job when the idempotency key was already used."""
     pipeline = get_pipeline(pipeline_id)
@@ -89,6 +82,20 @@ def run_pipeline(pipeline_id: str, idempotency_key: str) -> JobSummary:
 
         def task() -> dict:
             return run_recipe(pipeline.dataset_id, transform_request).model_dump(mode="json")
-    job = job_runner.submit(f"pipeline:{pipeline.pipeline_type}", task)
-    record_run(pipeline_id, idempotency_key, job.id)
-    return job
+    # The job row and its idempotency record are written in one transaction, *before* anything is queued.
+    # Concurrent callers with the same key collide on the primary key and get the winner's job back,
+    # so a key can never start two runs.
+    try:
+        with db() as connection:
+            job_id = job_runner.create_job(connection, f"pipeline:{pipeline.pipeline_type}")
+            connection.execute(
+                "INSERT INTO pipeline_runs(pipeline_id,idempotency_key,job_id,created_at) VALUES(?,?,?,?)",
+                (pipeline_id, idempotency_key, job_id, utcnow()),
+            )
+    except sqlite3.IntegrityError:
+        winner = existing_run_job(pipeline_id, idempotency_key)
+        if winner is None:
+            raise
+        return get_job(winner)
+    job_runner.enqueue(job_id, task)
+    return get_job(job_id)

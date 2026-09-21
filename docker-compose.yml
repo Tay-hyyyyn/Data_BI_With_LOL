@@ -3,19 +3,34 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
     environment:
       DATA_BI_ENV: local
       DATA_BI_ROOT: /workspace/data
       DATA_BI_CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+      # Passed through from the host environment / .env so PUUID hashing never falls back to the dev default.
+      DATA_BI_PUUID_PEPPER: ${DATA_BI_PUUID_PEPPER:-}
+      RIOT_API_KEY: ${RIOT_API_KEY:-}
+      RIOT_API_KEY_KIND: ${RIOT_API_KEY_KIND:-development}
     volumes:
       - ./data:/workspace/data
     ports:
-      - "8000:8000"
+      # Local-first: reachable from this machine only, not from the LAN.
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
-    depends_on: [backend]
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"

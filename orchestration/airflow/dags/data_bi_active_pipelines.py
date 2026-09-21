@@ -27,16 +27,19 @@ def active_pipelines():
         return response.json()
 
     @task(retries=2)
-    def run(pipeline: dict) -> dict:
+    def run(pipeline: dict, key_prefix: str) -> dict:
+        # `key_prefix` arrives already rendered: Airflow only applies Jinja to arguments passed *into* a task,
+        # never to strings built inside its body. It is hour-granular (ts_nodash) to match the hourly schedule,
+        # and stable across retries so a retried run reuses the same job instead of queuing a duplicate.
         response = requests.post(
             f"{API}/pipelines/{pipeline['id']}/run",
-            json={"idempotency_key": f"{{{{ ds_nodash }}}}-{pipeline['id']}"},
+            json={"idempotency_key": f"{key_prefix}-{pipeline['id']}"},
             timeout=120,
         )
         response.raise_for_status()
         return response.json()
 
-    run.expand(pipeline=enabled())
+    run.partial(key_prefix="{{ ts_nodash }}").expand(pipeline=enabled())
 
 
 active_pipelines()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import queue
+import sqlite3
 import threading
 import uuid
 from collections.abc import Callable
@@ -10,6 +11,8 @@ from typing import Any
 from ..database import db
 from ..schemas import JobSummary
 from .datasets import utcnow
+
+INTERRUPTED = "서버가 재시작되어 작업이 중단되었습니다."
 
 
 class LocalJobRunner:
@@ -20,6 +23,8 @@ class LocalJobRunner:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        # The queue lives in memory, so any row still queued/running belongs to a process that no longer exists.
+        recover_stale_jobs()
         self._thread = threading.Thread(target=self._work, name="data-bi-local-worker", daemon=True)
         self._thread.start()
 
@@ -29,14 +34,22 @@ class LocalJobRunner:
         self._queue.put(None)
         self._thread.join(timeout=3)
 
-    def submit(self, job_type: str, task: Callable[[], dict[str, Any]]) -> JobSummary:
+    def create_job(self, connection: sqlite3.Connection, job_type: str) -> str:
+        """Insert a queued job row inside the caller's transaction. Pair with `enqueue` after it commits."""
         job_id, now = uuid.uuid4().hex, utcnow()
-        with db() as connection:
-            connection.execute(
-                "INSERT INTO jobs(id,job_type,status,progress,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                (job_id, job_type, "queued", 0, now, now),
-            )
+        connection.execute(
+            "INSERT INTO jobs(id,job_type,status,progress,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+            (job_id, job_type, "queued", 0, now, now),
+        )
+        return job_id
+
+    def enqueue(self, job_id: str, task: Callable[[], dict[str, Any]]) -> None:
         self._queue.put((job_id, task))
+
+    def submit(self, job_type: str, task: Callable[[], dict[str, Any]]) -> JobSummary:
+        with db() as connection:
+            job_id = self.create_job(connection, job_type)
+        self.enqueue(job_id, task)
         return get_job(job_id)
 
     def _work(self) -> None:
@@ -61,11 +74,16 @@ class LocalJobRunner:
             )
 
 
-def get_job(job_id: str) -> JobSummary:
+def recover_stale_jobs() -> int:
+    """Fail jobs left queued/running by a previous process. Returns how many were recovered."""
     with db() as connection:
-        row = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
-    if not row:
-        raise KeyError(job_id)
+        return connection.execute(
+            "UPDATE jobs SET status='failed',progress=100,error=?,updated_at=? WHERE status IN ('queued','running')",
+            (INTERRUPTED, utcnow()),
+        ).rowcount
+
+
+def _summary(row: sqlite3.Row) -> JobSummary:
     return JobSummary(
         id=row["id"], job_type=row["job_type"], status=row["status"], progress=row["progress"],
         result=json.loads(row["result_json"]) if row["result_json"] else None,
@@ -73,10 +91,18 @@ def get_job(job_id: str) -> JobSummary:
     )
 
 
+def get_job(job_id: str) -> JobSummary:
+    with db() as connection:
+        row = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+    if not row:
+        raise KeyError(job_id)
+    return _summary(row)
+
+
 def list_jobs(limit: int = 50) -> list[JobSummary]:
     with db() as connection:
-        rows = connection.execute("SELECT id FROM jobs ORDER BY updated_at DESC LIMIT ?", (limit,)).fetchall()
-    return [get_job(row["id"]) for row in rows]
+        rows = connection.execute("SELECT * FROM jobs ORDER BY updated_at DESC LIMIT ?", (limit,)).fetchall()
+    return [_summary(row) for row in rows]
 
 
 job_runner = LocalJobRunner()

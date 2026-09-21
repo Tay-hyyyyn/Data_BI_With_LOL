@@ -23,7 +23,7 @@ def validate_event(record: dict) -> None:
 def persist_batch(root: Path, records: list[dict]) -> Path:
     for record in records:
         validate_event(record)
-    batch_id = hashlib.sha256("".join(sorted(str(record["event_id"]) for record in records)).encode()).hexdigest()[:20]
+    batch_id = hashlib.sha256("\n".join(sorted(str(record["event_id"]) for record in records)).encode()).hexdigest()[:20]
     directory = root / "bronze" / "stream" / datetime.now(UTC).strftime("dt=%Y-%m-%d/hour=%H")
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / f"batch-{batch_id}.jsonl"
