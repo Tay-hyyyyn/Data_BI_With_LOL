@@ -1,3 +1,4 @@
 allowBuilds:
   # Vite's trusted bundler binary; required for a production frontend build.
   esbuild: true
+  msw: true

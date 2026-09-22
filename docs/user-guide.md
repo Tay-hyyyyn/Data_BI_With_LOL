@@ -135,5 +135,15 @@ make types        # OpenAPI 스키마를 apps/frontend/openapi.json으로 내보
 python scripts/bench_query.py 2000000   # 집계 성능 측정 (임시 폴더 사용, 내 data/ 안 건드림)
 ```
 
+프론트엔드 쪽:
+
+```bash
+cd apps/frontend
+pnpm lint          # eslint
+pnpm typecheck     # tsc --noEmit
+pnpm test          # vitest
+pnpm gen:types     # openapi.json이 바뀌었을 때 src/api/generated.ts 재생성
+```
+
 구조와 계약은 [architecture.md](architecture.md), [contracts.md](contracts.md),
 병렬 작업 분담은 [parallel-plan.md](parallel-plan.md)를 보세요.

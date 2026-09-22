@@ -1,0 +1,27 @@
+/**
+ * Design tokens. `--line`, `--panel`, `--surface`, `--text`, `--muted` used to be referenced by
+ * dashboard-extra.css but never defined anywhere, so every rule using them silently no-op'd
+ * (no border, transparent background, inherited text color). They are defined here, once.
+ *
+ * Breakpoints are literals, not custom properties — `@media (max-width: var(--x))` is not
+ * reliably supported — but every layout rule in `layout.css` uses one of exactly three values,
+ * documented there. The six breakpoints previously scattered across three files (650/720/760/
+ * 850/1000/1100px) are consolidated into 720 / 1000 / 1320.
+ */
+
+:root {
+  --text: #172033;
+  --muted: #7b8799;
+  --line: #e2e6ec;
+  --panel: #fff;
+  --surface: #fff;
+  --bg: #f4f6f9;
+  --primary: #2864dc;
+  --success: #2abb91;
+  --danger: #dc5555;
+
+  font-family: Inter, "Noto Sans KR", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+}

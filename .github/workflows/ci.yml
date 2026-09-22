@@ -33,5 +33,17 @@ jobs:
           cache-dependency-path: apps/frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: apps/frontend
+      - run: pnpm lint
+        working-directory: apps/frontend
+      - run: pnpm format:check
+        working-directory: apps/frontend
+      - run: pnpm typecheck
+        working-directory: apps/frontend
+      - run: pnpm test
+        working-directory: apps/frontend
       - run: pnpm build
+        working-directory: apps/frontend
+      # Regenerating from the committed openapi.json must reproduce generated.ts exactly, or the
+      # backend's schema and the frontend's types have drifted.
+      - run: pnpm gen:types && git diff --exit-code -- src/api/generated.ts
         working-directory: apps/frontend

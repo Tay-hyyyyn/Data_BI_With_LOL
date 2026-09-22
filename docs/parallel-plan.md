@@ -61,8 +61,9 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
   - 수집기: `queue=420` 필터, `start` 페이징, `RiotClient` 싱글턴, 리전 파라미터화
 - **계약**: `lol/`은 FastAPI·SQLite import 금지, 마트는 `pd.DataFrame` 반환, 데이터셋 이름 동결
 
-### WS-5 · 프론트 플랫폼 / WS-6 · 프론트 스튜디오
-`apps/frontend` 구조 이동은 아직 하지 않았다. Node 22/pnpm 11.19는 설치되었고 `pnpm build`가 통과한다. `docs/frontend-plan.md`의 순서로 진행한다.
+### WS-5 · 프론트 플랫폼 / WS-6 · 프론트 스튜디오 (M) — ✅ 완료
+`docs/frontend-plan.md` 참고. router+TanStack Query+생성 타입으로 재구성, B2·B9·B10 해결,
+스튜디오 재작성, 브라우저 실행 검증 완료. 남은 것: `DashboardWidget` 백엔드 스키마 부재(WS-2 소관).
 
 ## 권장 웨이브
 
@@ -70,4 +71,3 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
 
 1. WS-1 + WS-3
 2. WS-2 + WS-4 (WS-4는 Data Dragon 다중 패치 수집이 키 없이 가능하므로 먼저 시작해도 됨)
-3. 프론트
