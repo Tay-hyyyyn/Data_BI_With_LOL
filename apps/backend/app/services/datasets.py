@@ -116,14 +116,14 @@ def create_dataset_from_frame(frame: pd.DataFrame, name: str, source_type: str) 
     return DatasetSummary(
         id=dataset_id, name=name, source_type=source_type,
         created_at=now, current_version_id=version_id,
-        row_count=len(frame), column_count=len(frame.columns),
+        row_count=len(frame), column_count=len(frame.columns), version_number=1,
     )
 
 
 def list_datasets() -> list[DatasetSummary]:
     with db() as connection:
         rows = connection.execute(
-            """SELECT d.*, v.row_count, v.column_count FROM datasets d
+            """SELECT d.*, v.row_count, v.column_count, v.version_number FROM datasets d
             LEFT JOIN dataset_versions v ON v.id=d.current_version_id ORDER BY d.created_at DESC"""
         ).fetchall()
     return [DatasetSummary(**dict(row)) for row in rows]
@@ -132,7 +132,7 @@ def list_datasets() -> list[DatasetSummary]:
 def get_dataset_by_name(name: str, source_type: str) -> DatasetSummary | None:
     with db() as connection:
         row = connection.execute(
-            """SELECT d.*, v.row_count, v.column_count FROM datasets d
+            """SELECT d.*, v.row_count, v.column_count, v.version_number FROM datasets d
             LEFT JOIN dataset_versions v ON v.id=d.current_version_id
             WHERE d.name=? AND d.source_type=? ORDER BY d.created_at DESC LIMIT 1""",
             (name, source_type),

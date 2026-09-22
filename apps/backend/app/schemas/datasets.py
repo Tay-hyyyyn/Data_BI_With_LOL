@@ -4,7 +4,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-__all__ = ["ColumnProfile", "DatasetProfile", "DatasetSummary", "TransformRequest", "TransformResult", "TransformStep"]
+__all__ = [
+    "ColumnProfile",
+    "DatasetProfile",
+    "DatasetSummary",
+    "Preview",
+    "TransformRequest",
+    "TransformResult",
+    "TransformStep",
+]
 
 
 class DatasetSummary(BaseModel):
@@ -15,6 +23,7 @@ class DatasetSummary(BaseModel):
     current_version_id: str | None
     row_count: int | None = None
     column_count: int | None = None
+    version_number: int | None = None
 
 
 class ColumnProfile(BaseModel):
@@ -36,6 +45,11 @@ class DatasetProfile(BaseModel):
     row_count: int
     column_count: int
     columns: list[ColumnProfile]
+
+
+class Preview(BaseModel):
+    columns: list[str]
+    rows: list[dict[str, Any]]
 
 
 class TransformStep(BaseModel):

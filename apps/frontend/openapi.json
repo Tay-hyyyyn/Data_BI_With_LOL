@@ -565,6 +565,17 @@
           "source_type": {
             "title": "Source Type",
             "type": "string"
+          },
+          "version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Number"
           }
         },
         "required": [
@@ -944,6 +955,31 @@
           "pipeline_type"
         ],
         "title": "PipelineWrite",
+        "type": "object"
+      },
+      "Preview": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "title": "Preview",
         "type": "object"
       },
       "QueryFilter": {
@@ -1803,9 +1839,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Dataset Preview Api V1 Datasets  Dataset Id  Preview Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Preview"
                 }
               }
             },

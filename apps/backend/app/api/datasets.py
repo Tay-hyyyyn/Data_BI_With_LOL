@@ -4,7 +4,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from ..config import settings
 from ..errors import api_errors, not_found, unprocessable
-from ..schemas import DatasetProfile, DatasetSummary
+from ..schemas import DatasetProfile, DatasetSummary, Preview
 from ..services.datasets import get_profile, ingest_upload, list_datasets, preview
 
 router = APIRouter()
@@ -34,7 +34,7 @@ def dataset_profile(dataset_id: str) -> DatasetProfile:
         return get_profile(dataset_id)
 
 
-@router.get("/datasets/{dataset_id}/preview")
+@router.get("/datasets/{dataset_id}/preview", response_model=Preview)
 def dataset_preview(dataset_id: str, limit: int = 100) -> dict:
     with api_errors(not_found("데이터셋을 찾을 수 없습니다.")):
         return preview(dataset_id, limit)
