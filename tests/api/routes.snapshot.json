@@ -52,6 +52,10 @@
   "POST"
  ],
  [
+  "/api/v1/datasets/{dataset_id}/recipes",
+  "GET"
+ ],
+ [
   "/api/v1/datasets/{dataset_id}/relationships",
   "POST"
  ],
@@ -126,21 +130,5 @@
  [
   "/api/v1/pipelines/{pipeline_id}/run",
   "POST"
- ],
- [
-  "/docs",
-  "GET"
- ],
- [
-  "/docs/oauth2-redirect",
-  "GET"
- ],
- [
-  "/openapi.json",
-  "GET"
- ],
- [
-  "/redoc",
-  "GET"
  ]
 ]

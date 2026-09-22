@@ -10,11 +10,13 @@ from .config import settings
 from .database import initialize_database
 from .errors import register_exception_handlers
 from .services.jobs import job_runner
+from .storage import cleanup_staging
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
+    cleanup_staging()  # sweep any staging dirs a previous crash left behind
     job_runner.start()
     yield
     job_runner.stop()

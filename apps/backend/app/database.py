@@ -97,13 +97,19 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
 
 def initialize_database() -> None:
     settings.root.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(settings.root / "metadata.db", timeout=5) as connection:
+    # `sqlite3.Connection`'s context manager only commits/rolls back the transaction on exit —
+    # it does not close the connection, so an explicit close is needed to avoid leaking it.
+    connection = sqlite3.connect(settings.root / "metadata.db", timeout=5)
+    try:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA synchronous=FULL")
         connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA busy_timeout=5000")
         connection.executescript(SCHEMA)
         connection.execute("PRAGMA optimize")
+        connection.commit()
+    finally:
+        connection.close()
 
 
 @contextmanager
@@ -112,6 +118,10 @@ def db() -> Iterator[sqlite3.Connection]:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys=ON")
     connection.execute("PRAGMA busy_timeout=5000")
+    # `synchronous` is per-connection (unlike `journal_mode`, which persists in the file), so it
+    # must be set here too, not only in `initialize_database`, or ordinary writes run with
+    # SQLite's WAL default (NORMAL) instead of the durability this app documents relying on.
+    connection.execute("PRAGMA synchronous=FULL")
     try:
         yield connection
         connection.commit()

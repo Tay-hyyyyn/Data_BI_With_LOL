@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ import pandas as pd
 
 from ..database import db
 from ..query import materialize
-from ..schemas import ColumnProfile, DatasetProfile, DatasetSummary
+from ..schemas import ColumnProfile, DatasetProfile, DatasetSummary, RecipeSummary
 from ..storage import publish_dataframe, read_uploaded_file, save_raw_upload
 
 
@@ -188,37 +189,70 @@ def preview(dataset_id: str, limit: int = 100) -> dict:
     return {"columns": [str(c) for c in clean.columns], "rows": clean.to_dict(orient="records")}
 
 
+_MAX_VERSION_ATTEMPTS = 10
+
+
 def publish_new_version(dataset_id: str, frame: pd.DataFrame, recipe_name: str, steps: list[dict]) -> dict:
+    """Publish `frame` as the dataset's next version, retrying the version-number allocation on
+    a UNIQUE collision from a concurrent writer.
+
+    Reading `MAX(version_number)` and inserting it used to happen in two separate connections, so
+    two concurrent transforms on the same dataset could both compute the same "next" number and
+    one would fail with an uncaught `IntegrityError`, leaving its already-published Parquet
+    orphaned. Allocating and inserting now happen in one transaction, and a collision (which is
+    still possible: SQLite does not take a write lock for the `SELECT`, so two transactions can
+    both read the same MAX before either writes) is retried with a freshly read MAX rather than
+    surfaced as a 500.
+    """
     version_id = uuid.uuid4().hex
     recipe_id = uuid.uuid4().hex
-    with db() as connection:
-        row = connection.execute(
-            "SELECT COALESCE(MAX(version_number),0)+1 AS next_version FROM dataset_versions WHERE dataset_id=?",
-            (dataset_id,),
-        ).fetchone()
-    if not row:
-        raise KeyError(dataset_id)
-    version_number = int(row["next_version"])
     profile = profile_frame(dataset_id, version_id, frame)
     manifest = publish_dataframe(dataset_id, version_id, frame)
     now = utcnow()
-    with db() as connection:
-        exists = connection.execute("SELECT 1 FROM datasets WHERE id=?", (dataset_id,)).fetchone()
-        if not exists:
-            raise KeyError(dataset_id)
-        connection.execute(
-            """INSERT INTO dataset_versions
-            (id,dataset_id,version_number,status,row_count,column_count,schema_json,manifest_path,body_sha256,created_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?)""",
-            (version_id, dataset_id, version_number, "published", len(frame), len(frame.columns),
-             profile.model_dump_json(), manifest["manifest_path"], manifest["body_sha256"], now),
-        )
-        connection.execute("UPDATE datasets SET current_version_id=? WHERE id=?", (version_id, dataset_id))
-        connection.execute(
-            "INSERT INTO recipes(id,dataset_id,name,steps_json,created_at) VALUES(?,?,?,?,?)",
-            (recipe_id, dataset_id, recipe_name, json.dumps(steps, ensure_ascii=False), now),
-        )
+    for attempt in range(_MAX_VERSION_ATTEMPTS):
+        try:
+            with db() as connection:
+                exists = connection.execute("SELECT 1 FROM datasets WHERE id=?", (dataset_id,)).fetchone()
+                if not exists:
+                    raise KeyError(dataset_id)
+                next_version = connection.execute(
+                    "SELECT COALESCE(MAX(version_number),0)+1 AS next_version FROM dataset_versions WHERE dataset_id=?",
+                    (dataset_id,),
+                ).fetchone()["next_version"]
+                version_number = int(next_version)
+                connection.execute(
+                    """INSERT INTO dataset_versions
+                    (id,dataset_id,version_number,status,row_count,column_count,schema_json,manifest_path,body_sha256,created_at)
+                    VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                    (version_id, dataset_id, version_number, "published", len(frame), len(frame.columns),
+                     profile.model_dump_json(), manifest["manifest_path"], manifest["body_sha256"], now),
+                )
+                connection.execute("UPDATE datasets SET current_version_id=? WHERE id=?", (version_id, dataset_id))
+                connection.execute(
+                    "INSERT INTO recipes(id,dataset_id,name,steps_json,created_at) VALUES(?,?,?,?,?)",
+                    (recipe_id, dataset_id, recipe_name, json.dumps(steps, ensure_ascii=False), now),
+                )
+            break
+        except sqlite3.IntegrityError:
+            if attempt == _MAX_VERSION_ATTEMPTS - 1:
+                raise
     return {
         "dataset_id": dataset_id, "version_id": version_id, "version_number": version_number,
         "row_count": len(frame), "column_count": len(frame.columns), "recipe_id": recipe_id,
     }
+
+
+def list_recipes(dataset_id: str) -> list[RecipeSummary]:
+    """Version-publish lineage for a dataset: every transform recipe and sync that produced a
+    new version, newest first. Written by `publish_new_version` but never read before this."""
+    with db() as connection:
+        exists = connection.execute("SELECT 1 FROM datasets WHERE id=?", (dataset_id,)).fetchone()
+        if not exists:
+            raise KeyError(dataset_id)
+        rows = connection.execute(
+            "SELECT * FROM recipes WHERE dataset_id=? ORDER BY created_at DESC", (dataset_id,)
+        ).fetchall()
+    return [
+        RecipeSummary(id=row["id"], dataset_id=row["dataset_id"], name=row["name"], steps=json.loads(row["steps_json"]), created_at=row["created_at"])
+        for row in rows
+    ]

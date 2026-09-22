@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sqlite3
 import tempfile
 import zipfile
@@ -53,23 +54,33 @@ def create_backup(data_root: Path, output: Path, include_raw: bool = False) -> P
         raise FileNotFoundError(f"메타데이터 DB를 찾을 수 없습니다: {metadata}")
     output.parent.mkdir(parents=True, exist_ok=True)
     entries: list[dict[str, str]] = []
+    # Build the archive at a temporary path in the same directory and rename it into place only
+    # once it is complete. Writing straight to `output` would leave a truncated-but-present file
+    # at the final path if the process is interrupted mid-write, which `verify_backup` would only
+    # catch if someone remembered to run it.
     with tempfile.TemporaryDirectory(prefix="data-bi-backup-") as temp:
         temp_metadata = Path(temp) / "metadata.db"
         copy_sqlite_online(metadata, temp_metadata)
-        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.write(temp_metadata, "metadata.db")
-            entries.append({"path": "metadata.db", "sha256": sha256(temp_metadata)})
-            add_tree(archive, data_root / "published", "published", entries)
-            if include_raw:
-                add_tree(archive, data_root / "raw", "raw", entries)
-                add_tree(archive, data_root / "bronze", "bronze", entries)
-            manifest = {
-                "format": "data-bi-backup-v1",
-                "created_at": datetime.now(UTC).isoformat(),
-                "includes_raw": include_raw,
-                "files": entries,
-            }
-            archive.writestr("backup-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        temp_output = output.parent / f"{output.name}.tmp"
+        try:
+            with zipfile.ZipFile(temp_output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.write(temp_metadata, "metadata.db")
+                entries.append({"path": "metadata.db", "sha256": sha256(temp_metadata)})
+                add_tree(archive, data_root / "published", "published", entries)
+                if include_raw:
+                    add_tree(archive, data_root / "raw", "raw", entries)
+                    add_tree(archive, data_root / "bronze", "bronze", entries)
+                manifest = {
+                    "format": "data-bi-backup-v1",
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "includes_raw": include_raw,
+                    "files": entries,
+                }
+                archive.writestr("backup-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            os.replace(temp_output, output)
+        except BaseException:
+            temp_output.unlink(missing_ok=True)
+            raise
     return output
 
 

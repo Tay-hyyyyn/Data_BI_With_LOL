@@ -30,15 +30,17 @@ push 전 `git pull --rebase`, 병합은 squash. 커밋 접두는 `feat(ws1): ...
   - **B5**: `astype(str)` 필터 → 타입 강제변환 (널 있는 정수 컬럼의 `"1"` vs `"1.0"`)
 - **계약**: `materialize` 시그니처 불변, `DatasetQueryResult`/`DatasetChartResult` 동결, `tests/query/test_bi.py`의 정렬 의미론 유지
 
-### WS-2 · 스토리지·버전·전처리 무결성 (M)
-- **소유**: `app/storage.py`, `app/services/datasets.py`, `app/services/transforms/**`, `app/api/datasets.py`, `app/api/transforms.py`, `scripts/{backup,restore,verify}_*.py`
-- **할 일**
-  - **B4**: `publish_new_version`을 단일 트랜잭션 + UNIQUE 재시도로
-  - **B7**: `mkdir(exist_ok=True)` + 기동 시 `cleanup_staging()` 호출
-  - `manifest_files`에서 sha256 검증
-  - `recipes` 테이블 노출(`GET /datasets/{id}/recipes`)하거나 쓰기 삭제 — 지금의 "쓰기만 하고 읽지 않음"이 최악
-  - `DatasetSummary`에 `version_number` 추가 (프론트 KPI 하드코딩 B10의 선행 조건)
-- **계약**: `get_version()` 최소 키 유지
+### WS-2 · 스토리지·버전·전처리 무결성 (M) — ✅ 완료
+- **소유**: `app/storage.py`, `app/services/datasets.py`, `app/database.py`, `scripts/{backup,restore,verify}_*.py`
+- **한 일**
+  - **B4**: `publish_new_version`을 단일 트랜잭션으로 묶고 `sqlite3.IntegrityError` 시 최대 10회 재시도 (SQLite는 `SELECT`에 쓰기 락을 잡지 않아 한 트랜잭션 안에서도 경합 가능 — 그래서 재시도가 필요). 8스레드·16동시발행 테스트로 확인
+  - **B7**: `mkdir(exist_ok=True)` + 기동 시 `cleanup_staging()` 호출(`main.py` lifespan)
+  - `manifest_files`가 파일당 sha256을 최초 1회 검증하고 경로별로 캐시(퍼블리시 후 파일은 불변이므로 매 쿼리마다 재해시하지 않음) — 손상 시 `ValueError`
+  - `recipes` 테이블을 `GET /datasets/{id}/recipes`로 노출 (`RecipeSummary` 스키마 추가)
+  - `DatasetSummary.version_number` 추가 — 프론트 B10 하드코딩 KPI 수정에 이미 사용됨
+  - (추가 발견) `initialize_database()`의 연결 누수, `db()`에 `synchronous=FULL`이 적용 안 되던 문제, `backup_data.py`의 비원자적 쓰기(+실패 시 `.tmp` 잔존)도 같이 고쳤음
+- **계약**: `get_version()` 최소 키 유지(변경 없음)
+- **테스트**: `tests/storage/test_integrity.py`(8개) + `tests/test_backup.py`에 4개 추가
 
 ### WS-3 · 잡·파이프라인·스트림·운영 (M) — ✅ 대부분 완료 (남음: `event_schema.json` 결정, 컨테이너 비root)
 - **소유**: `app/services/{jobs,pipelines}.py`, `app/api/{jobs,pipelines}.py`, `orchestration/**`, `stream/**`, `docker-compose.yml`, `infra/**`, `apps/*/Dockerfile`, `Makefile`

@@ -9,6 +9,7 @@ __all__ = [
     "DatasetProfile",
     "DatasetSummary",
     "Preview",
+    "RecipeSummary",
     "TransformRequest",
     "TransformResult",
     "TransformStep",
@@ -50,6 +51,16 @@ class DatasetProfile(BaseModel):
 class Preview(BaseModel):
     columns: list[str]
     rows: list[dict[str, Any]]
+
+
+class RecipeSummary(BaseModel):
+    """One version-publish event: a user transform recipe, or an empty-step sync (e.g. LoL/static)."""
+
+    id: str
+    dataset_id: str
+    name: str
+    steps: list[dict[str, Any]]
+    created_at: str
 
 
 class TransformStep(BaseModel):
