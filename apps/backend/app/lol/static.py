@@ -10,6 +10,16 @@ def patch_key(version: str | None) -> str:
     return ".".join(parts[:2]) if len(parts) >= 2 else str(version or "")
 
 
+def resolve_version_for_patch(versions: list[str], patch: str) -> str | None:
+    """The newest Data Dragon version string whose patch key matches `patch`, or None.
+
+    Replaces guessing a match's patch always ships a ".1" Data Dragon build (e.g. assuming
+    "16.18" -> "16.18.1"), which is not guaranteed and silently mismatches item data to matches
+    from a different build within the same patch.
+    """
+    return next((version for version in versions if patch_key(version) == patch), None)
+
+
 def champion_frame(payload: dict[str, Any], patch: str) -> pd.DataFrame:
     rows = []
     for champion in payload.get("data", {}).values():

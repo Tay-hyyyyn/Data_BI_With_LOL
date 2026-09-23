@@ -58,8 +58,14 @@ def normalize_match(match: dict, timeline: dict, snapshot_minutes: list[int]) ->
             "inventory_after": ",".join(map(str, inventory[pid])),
         })
 
+    game_duration_s = info.get("gameDuration") or 0
     state_rows = []
     for minute in sorted(set(snapshot_minutes)):
+        if game_duration_s < minute * 60:
+            # The game ended before this snapshot point. Emitting a row here would silently
+            # duplicate the last available frame's values under a later minute, inflating
+            # sample counts and biasing later-minute stats toward short games (stomps).
+            continue
         target = minute * 60_000
         available = [frame for frame in frames if frame.get("timestamp", 0) <= target]
         if not available:

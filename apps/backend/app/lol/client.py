@@ -5,12 +5,16 @@ import json
 import os
 import random
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
 
 from ..config import settings
+
+# Riot's account-v1 and match-v5 both route by continent cluster, not by platform (e.g. "kr" or
+# "na1") — the same value works for both calls, which is why one field covers them.
+Region = Literal["americas", "asia", "europe", "sea"]
 
 
 class RiotKeyError(RuntimeError):
@@ -18,9 +22,10 @@ class RiotKeyError(RuntimeError):
 
 
 class RiotClient:
-    def __init__(self, api_key: str | None = None, key_kind: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, key_kind: str | None = None, region: Region = "asia") -> None:
         self.api_key = api_key or os.getenv("RIOT_API_KEY")
         self.key_kind = (key_kind or os.getenv("RIOT_API_KEY_KIND") or "development").lower()
+        self.region = region
         if settings.environment == "production" and self.key_kind != "production":
             raise RiotKeyError("공개 production 환경에서는 Development API Key를 사용할 수 없습니다.")
         if not self.api_key:
@@ -58,10 +63,13 @@ class RiotClient:
     async def account_by_riot_id(self, game_name: str, tag_line: str) -> dict[str, Any]:
         game = quote(game_name.strip(), safe="")
         tag = quote(tag_line.strip().lstrip("#"), safe="")
-        return await self.get_json(f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{game}/{tag}")
+        return await self.get_json(f"https://{self.region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{game}/{tag}")
 
-    async def match_ids(self, puuid: str, start: int = 0, count: int = 20) -> list[str]:
-        url = f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start={start}&count={min(count, 100)}"
+    async def match_ids(self, puuid: str, start: int = 0, count: int = 20, queue: int | None = None) -> list[str]:
+        params = f"start={start}&count={min(count, 100)}"
+        if queue is not None:
+            params += f"&queue={queue}"
+        url = f"https://{self.region}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?{params}"
         return await self.get_json(url)
 
     async def persist_match(self, match_id: str) -> dict[str, Path]:
@@ -69,7 +77,7 @@ class RiotClient:
         paths = {"match": root / "match.json", "timeline": root / "timeline.json"}
         if all(path.is_file() for path in paths.values()):
             return paths
-        base = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        base = f"https://{self.region}.api.riotgames.com/lol/match/v5/matches/{match_id}"
         match, timeline = await asyncio.gather(self.get_json(base), self.get_json(f"{base}/timeline"))
         root.mkdir(parents=True, exist_ok=True)
         for key, payload in (("match", match), ("timeline", timeline)):
@@ -79,14 +87,22 @@ class RiotClient:
         return paths
 
 
-async def fetch_data_dragon(version: str | None = None) -> tuple[str, dict[str, Any]]:
-    async with httpx.AsyncClient(timeout=30) as client:
-        if version is None:
-            versions = (await client.get("https://ddragon.leagueoflegends.com/api/versions.json")).json()
-            version = versions[0]
-        response = await client.get(f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/item.json")
-        response.raise_for_status()
-        return version, response.json()
+# One client per (api_key, key_kind, region) so the rate-limit throttle's clock is actually shared
+# across requests. Building a fresh `RiotClient()` per call — the previous behavior — reset
+# `_last_request_at` every time, so concurrent requests could each think they were the first and
+# collectively exceed the Development key's 100-requests-per-2-minutes long window.
+_clients: dict[tuple[str | None, str, Region], RiotClient] = {}
+
+
+def get_riot_client(region: Region = "asia") -> RiotClient:
+    api_key = os.getenv("RIOT_API_KEY")
+    key_kind = (os.getenv("RIOT_API_KEY_KIND") or "development").lower()
+    cache_key = (api_key, key_kind, region)
+    client = _clients.get(cache_key)
+    if client is None:
+        client = RiotClient(region=region)
+        _clients[cache_key] = client
+    return client
 
 
 async def fetch_data_dragon_bundle(version: str | None = None, locale: str = "en_US") -> tuple[str, dict[str, Any]]:
@@ -108,3 +124,13 @@ async def fetch_data_dragon_bundle(version: str | None = None, locale: str = "en
             "champions": champion_response.json(),
             "runes": rune_response.json(),
         }
+
+
+async def list_data_dragon_versions() -> list[str]:
+    """Every Data Dragon version, newest first — used to resolve a patch to a real version
+    instead of guessing one (a patch like "16.18" was previously assumed to have a ".1" build,
+    which is not guaranteed)."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get("https://ddragon.leagueoflegends.com/api/versions.json")
+        response.raise_for_status()
+        return response.json()

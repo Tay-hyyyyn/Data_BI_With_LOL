@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import pandas as pd
-from app.lol.items import (
+from app.lol.items import item_frame
+from app.lol.marts import (
     build_context_mart,
     build_gold_win_timeseries,
     build_item_event_mart,
     build_observed_win_summary,
     build_patch_stat_trend,
     build_sample_coverage,
-    estimate_gold_values,
-    item_frame,
-    reference_prices,
 )
+from app.lol.pricing import reference_prices
 
 
 def test_reference_item_price_is_derived_from_payload() -> None:
@@ -53,14 +52,34 @@ def test_context_mart_adds_inventory_and_gold_differences() -> None:
     summary = build_observed_win_summary(mart)
     assert {"sample_players", "sample_matches", "observed_win_rate"}.issubset(summary.columns)
     timeseries = build_gold_win_timeseries(mart, bucket_size=500)
-    assert {"gold_bucket_start", "gold_bucket_end", "observed_win_rate", "average_inventory_ad"}.issubset(timeseries.columns)
+    assert {"patch", "gold_bucket_start", "gold_bucket_end", "observed_win_rate", "average_inventory_ad"}.issubset(timeseries.columns)
     assert timeseries["sample_players"].sum() == len(mart)
+    assert (timeseries["patch"] == "16.18").all()
     trend = build_patch_stat_trend(mart)
     assert {"patch", "minute", "average_inventory_ad", "sample_matches"}.issubset(trend.columns)
     assert trend.iloc[0]["patch"] == "16.18"
     coverage = build_sample_coverage(mart)
     assert {"patch", "role", "sample_players", "inventory_missing_ratio"}.issubset(coverage.columns)
     assert coverage["sample_players"].sum() == len(mart)
+
+
+def test_timeseries_and_trend_agree_on_patch_granularity_across_build_numbers() -> None:
+    """Regression: build_gold_win_timeseries used to group by the full game_version string
+    (fragmenting one patch's build numbers into separate rows) while its sibling marts grouped
+    by the 2-segment patch key."""
+    mart = pd.DataFrame(
+        [
+            {"match_id": "KR_1", "minute": 10, "role": "TOP", "total_gold": 3000, "inventory_cost": 0, "team_gold_diff": 0, "lane_gold_diff": 0, "observed_win": 1, "participant_id": 1, "game_version": "16.18.712.1234", "champion_id": 1, "inventory": ""},
+            {"match_id": "KR_2", "minute": 10, "role": "TOP", "total_gold": 3200, "inventory_cost": 0, "team_gold_diff": 0, "lane_gold_diff": 0, "observed_win": 0, "participant_id": 2, "game_version": "16.18.900.5678", "champion_id": 2, "inventory": ""},
+        ]
+    )
+
+    timeseries = build_gold_win_timeseries(mart, bucket_size=500)
+    trend = build_patch_stat_trend(mart)
+
+    assert set(timeseries["patch"]) == {"16.18"}
+    assert set(trend["patch"]) == {"16.18"}
+    assert timeseries["sample_matches"].iloc[0] == 2  # both build numbers merged into one patch row
 
 
 def test_item_event_mart_marks_final_item_purchase() -> None:
@@ -71,17 +90,3 @@ def test_item_event_mart_marks_final_item_purchase() -> None:
 
     assert mart.iloc[0]["minute"] == 15
     assert bool(mart.iloc[0]["is_completion_event"])
-
-
-def test_gold_model_exposes_non_negative_ridge_and_nnls() -> None:
-    items = pd.DataFrame(
-        {
-            "item_name": ["A", "B", "C", "D", "E", "F"],
-            "total_gold": [100, 200, 300, 400, 500, 600],
-            "ad": [1, 2, 1, 3, 2, 4],
-            "ap": [2, 1, 3, 1, 4, 2],
-        }
-    )
-    result = estimate_gold_values(items, bootstrap=20)
-    assert (result["ridge_gold_per_unit"] >= 0).all()
-    assert (result["nnls_gold_per_unit"] >= 0).all()

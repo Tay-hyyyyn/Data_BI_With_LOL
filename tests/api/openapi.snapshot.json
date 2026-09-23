@@ -685,13 +685,6 @@
    },
    "LolStaticSyncRequest": {
     "properties": {
-     "bootstrap_samples": {
-      "default": 200,
-      "maximum": 2000.0,
-      "minimum": 20.0,
-      "title": "Bootstrap Samples",
-      "type": "integer"
-     },
      "version": {
       "anyOf": [
        {
@@ -1242,6 +1235,17 @@
       "title": "Game Name",
       "type": "string"
      },
+     "region": {
+      "default": "asia",
+      "enum": [
+       "americas",
+       "asia",
+       "europe",
+       "sea"
+      ],
+      "title": "Region",
+      "type": "string"
+     },
      "tag_line": {
       "maxLength": 16,
       "minLength": 1,
@@ -1293,6 +1297,38 @@
       "minLength": 20,
       "title": "Puuid",
       "type": "string"
+     },
+     "queue": {
+      "anyOf": [
+       {
+        "maximum": 2000.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": 420,
+      "title": "Queue"
+     },
+     "region": {
+      "default": "asia",
+      "enum": [
+       "americas",
+       "asia",
+       "europe",
+       "sea"
+      ],
+      "title": "Region",
+      "type": "string"
+     },
+     "start": {
+      "default": 0,
+      "maximum": 1000.0,
+      "minimum": 0.0,
+      "title": "Start",
+      "type": "integer"
      }
     },
     "required": [

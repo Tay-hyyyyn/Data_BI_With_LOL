@@ -13,20 +13,18 @@ import pandas as pd
 from ..config import settings
 from ..errors import DomainError, NotFoundError
 from ..lol.benchmark import read_lolps_benchmark_upload
-from ..lol.client import RiotClient, fetch_data_dragon_bundle
-from ..lol.items import (
+from ..lol.client import fetch_data_dragon_bundle, get_riot_client, list_data_dragon_versions
+from ..lol.items import item_frame
+from ..lol.marts import (
     build_context_mart,
     build_gold_win_timeseries,
     build_item_event_mart,
     build_observed_win_summary,
     build_patch_stat_trend,
     build_sample_coverage,
-    estimate_gold_values,
-    item_efficiency,
-    item_frame,
-    reference_prices,
 )
-from ..lol.static import champion_frame, patch_key, rune_frame
+from ..lol.pricing import estimate_gold_values, item_efficiency, reference_prices, ridge_price_map
+from ..lol.static import champion_frame, patch_key, resolve_version_for_patch, rune_frame
 from ..lol.timeline import normalize_persisted
 from ..schemas import (
     DashboardSummary,
@@ -41,15 +39,18 @@ from ..schemas import (
 from .bi import save_or_update_dashboard
 from .datasets import create_dataset_from_frame, get_dataset_by_name, list_datasets, read_frame, sync_named_dataset
 
+CONTEXT_MART_PREFIX = "LoL contextual gold mart "
+ITEM_DATASET_PREFIX = "LoL items "
+
 
 async def sync_static(request: LolStaticSyncRequest) -> dict:
     version, payload = await fetch_data_dragon_bundle(request.version)
     items = item_frame(payload["items"], version)
     champions = champion_frame(payload["champions"], version)
     runes = rune_frame(payload["runes"], version)
-    estimates = estimate_gold_values(items, bootstrap=request.bootstrap_samples)
-    efficiency = item_efficiency(items, reference_prices(items))
-    item_dataset = sync_named_dataset(efficiency, f"LoL items {version}", "riot-data-dragon")
+    estimates = estimate_gold_values(items)
+    efficiency = item_efficiency(items, reference_prices(items), ridge_price_map(estimates))
+    item_dataset = sync_named_dataset(efficiency, f"{ITEM_DATASET_PREFIX}{version}", "riot-data-dragon")
     champion_dataset = sync_named_dataset(champions, f"LoL champions {version}", "riot-data-dragon")
     rune_dataset = sync_named_dataset(runes, f"LoL runes {version}", "riot-data-dragon")
     value_dataset = sync_named_dataset(estimates, f"LoL stat values {version}", "riot-derived-model")
@@ -129,7 +130,7 @@ def create_patch_trend_dashboard() -> DashboardSummary:
 
 async def resolve_account(request: RiotAccountResolveRequest) -> RiotAccountSummary:
     try:
-        account = await RiotClient().account_by_riot_id(request.game_name, request.tag_line)
+        account = await get_riot_client(request.region).account_by_riot_id(request.game_name, request.tag_line)
     except httpx.HTTPStatusError as error:
         if error.response.status_code == 404:
             raise NotFoundError("Riot ID를 찾을 수 없습니다.") from error
@@ -142,8 +143,8 @@ async def resolve_account(request: RiotAccountResolveRequest) -> RiotAccountSumm
 
 
 async def collect_matches(request: RiotMatchCollectRequest) -> dict:
-    client = RiotClient()
-    match_ids = await client.match_ids(request.puuid, count=request.count)
+    client = get_riot_client(request.region)
+    match_ids = await client.match_ids(request.puuid, start=request.start, count=request.count, queue=request.queue)
     persisted = []
     for match_id in match_ids:
         directory = settings.root / "bronze" / "riot" / "matches" / match_id
@@ -176,7 +177,7 @@ def process_matches(request: RiotMatchProcessRequest) -> dict:
         mart = build_context_mart(states, items)
         mart["ddragon_version"] = str(items.iloc[0]["patch"]) if "patch" in items and not items.empty else None
         derived = "riot-derived-model"
-        result["context_mart"] = sync_named_dataset(mart, f"LoL contextual gold mart {patch_label}", derived)
+        result["context_mart"] = sync_named_dataset(mart, f"{CONTEXT_MART_PREFIX}{patch_label}", derived)
         result["observed_win_summary"] = sync_named_dataset(
             build_observed_win_summary(mart), f"LoL observed win cohorts {patch_label}", derived
         )
@@ -187,6 +188,42 @@ def process_matches(request: RiotMatchProcessRequest) -> dict:
             build_item_event_mart(events, items), f"LoL item completion events {patch_label}", derived
         )
     return result
+
+
+def _find_item_dataset(patch: str) -> DatasetSummary | None:
+    return next(
+        (
+            dataset
+            for dataset in list_datasets()
+            if dataset.source_type == "riot-data-dragon"
+            and dataset.name.startswith(ITEM_DATASET_PREFIX)
+            and patch_key(dataset.name.removeprefix(ITEM_DATASET_PREFIX)) == patch
+        ),
+        None,
+    )
+
+
+async def _resolve_or_sync_item_dataset(patch: str) -> DatasetSummary:
+    items = _find_item_dataset(patch)
+    if items:
+        return items
+    versions = await list_data_dragon_versions()
+    resolved = resolve_version_for_patch(versions, patch)
+    if not resolved:
+        raise NotFoundError(f"{patch} 패치에 해당하는 Data Dragon 버전을 찾지 못했습니다. 먼저 /lol/static/sync로 등록하세요.")
+    synced = await sync_static(LolStaticSyncRequest(version=resolved))
+    return synced["items"]
+
+
+def _all_context_marts() -> list[pd.DataFrame]:
+    """Every published context mart across every patch ever processed, not just this request's —
+    `build_patch_stat_trend`/`build_sample_coverage` are named without a patch suffix and are
+    meant to be a running cross-patch history, not a snapshot of one request's batch."""
+    return [
+        read_frame(dataset.id)
+        for dataset in list_datasets()
+        if dataset.source_type == "riot-derived-model" and dataset.name.startswith(CONTEXT_MART_PREFIX)
+    ]
 
 
 async def process_matches_grouped(request: RiotMatchProcessRequest) -> dict:
@@ -201,21 +238,8 @@ async def process_matches_grouped(request: RiotMatchProcessRequest) -> dict:
         match_ids_by_patch.setdefault(match_patch, []).append(match_id)
 
     processed: dict[str, dict] = {}
-    context_frames = []
     for match_patch, patch_match_ids in sorted(match_ids_by_patch.items()):
-        items = next(
-            (
-                dataset
-                for dataset in list_datasets()
-                if dataset.source_type == "riot-data-dragon"
-                and dataset.name.startswith("LoL items ")
-                and patch_key(dataset.name.removeprefix("LoL items ")) == match_patch
-            ),
-            None,
-        )
-        if not items:
-            synced = await sync_static(LolStaticSyncRequest(version=f"{match_patch}.1"))
-            items = synced["items"]
+        items = await _resolve_or_sync_item_dataset(match_patch)
         result = process_matches(
             RiotMatchProcessRequest(
                 match_ids=patch_match_ids,
@@ -224,7 +248,8 @@ async def process_matches_grouped(request: RiotMatchProcessRequest) -> dict:
             )
         )
         processed[match_patch] = result
-        context_frames.append(read_frame(result["context_mart"].id))
+
+    context_frames = _all_context_marts()
     if not context_frames:
         return {"patches": processed}
     combined = pd.concat(context_frames, ignore_index=True)

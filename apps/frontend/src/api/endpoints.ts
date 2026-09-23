@@ -74,11 +74,7 @@ export const pipelinesApi = {
 };
 
 export const lolApi = {
-  syncStatic: (version?: string) =>
-    apiPost<LolStaticSync>("/api/v1/lol/static/sync", {
-      version: version || null,
-      bootstrap_samples: 200,
-    }),
+  syncStatic: (version?: string) => apiPost<LolStaticSync>("/api/v1/lol/static/sync", { version: version || null }),
   createStarterDashboard: (patch: string) =>
     apiPost<Dashboard>("/api/v1/lol/dashboards/starter", { patch }),
   createPatchTrendDashboard: () => apiPost<Dashboard>("/api/v1/lol/dashboards/patch-trend"),

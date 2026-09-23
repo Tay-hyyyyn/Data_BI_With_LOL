@@ -95,6 +95,9 @@ API 문서(직접 호출해볼 수 있음)는 <http://localhost:8000/docs> 입�
 .venv/Scripts/python scripts/collect_lol_sample.py "게임이름#태그" --count 20
 ```
 
+기본값은 솔로랭크(`queue=420`)만 수집합니다. 다른 큐를 포함하려면 `--queue -1`, 더 과거 경기는
+`--start`로 페이징, 다른 리전은 `--region`(americas/asia/europe/sea)으로 지정합니다. `--count`는 최대 100까지 됩니다.
+
 ## 7. 데이터는 어디에 저장되나요?
 
 `data/` 폴더 (git에 올라가지 않음):

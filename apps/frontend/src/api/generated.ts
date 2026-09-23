@@ -193,6 +193,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datasets/{dataset_id}/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dataset Recipes */
+        get: operations["dataset_recipes_api_v1_datasets__dataset_id__recipes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datasets/{dataset_id}/relationships": {
         parameters: {
             query?: never;
@@ -728,11 +745,6 @@ export interface components {
         };
         /** LolStaticSyncRequest */
         LolStaticSyncRequest: {
-            /**
-             * Bootstrap Samples
-             * @default 200
-             */
-            bootstrap_samples: number;
             /** Version */
             version?: string | null;
         };
@@ -848,6 +860,24 @@ export interface components {
             /** Value */
             value: unknown;
         };
+        /**
+         * RecipeSummary
+         * @description One version-publish event: a user transform recipe, or an empty-step sync (e.g. LoL/static).
+         */
+        RecipeSummary: {
+            /** Created At */
+            created_at: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Steps */
+            steps: {
+                [key: string]: unknown;
+            }[];
+        };
         /** RelationshipItem */
         RelationshipItem: {
             /** Chart Spec */
@@ -929,6 +959,12 @@ export interface components {
         RiotAccountResolveRequest: {
             /** Game Name */
             game_name: string;
+            /**
+             * Region
+             * @default asia
+             * @enum {string}
+             */
+            region: "americas" | "asia" | "europe" | "sea";
             /** Tag Line */
             tag_line: string;
         };
@@ -950,6 +986,22 @@ export interface components {
             count: number;
             /** Puuid */
             puuid: string;
+            /**
+             * Queue
+             * @default 420
+             */
+            queue: number | null;
+            /**
+             * Region
+             * @default asia
+             * @enum {string}
+             */
+            region: "americas" | "asia" | "europe" | "sea";
+            /**
+             * Start
+             * @default 0
+             */
+            start: number;
         };
         /** RiotMatchProcessRequest */
         RiotMatchProcessRequest: {
@@ -1405,6 +1457,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatasetQueryResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dataset_recipes_api_v1_datasets__dataset_id__recipes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeSummary"][];
                 };
             };
             /** @description Validation Error */
